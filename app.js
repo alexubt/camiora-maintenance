@@ -14,7 +14,7 @@ const GRAPH  = 'https://graph.microsoft.com/v1.0';
 let accessToken  = null;
 let files        = [];
 let isUploading  = false;
-let scanPages    = [];   // array of canvas elements (processed scans)
+let scanPages    = [];   // array of canvas elements (B&W processed scans)
 
 // ── Auth (PKCE authorization code flow) ──────────────────────────────────────
 function generateRandomString(len) {
@@ -245,8 +245,7 @@ function renderApp() {
           <div class="scan-pages" id="scanPages"></div>
 
           <div id="scanActions" class="scan-actions" style="display:none;">
-            <button class="scan-add-btn" onclick="openCamera()">+ Add page</button>
-            <button class="scan-done-btn" onclick="finalizeScan()">Done — create PDF</button>
+            <button class="scan-add-btn" onclick="addMorePages()">+ Add another page</button>
           </div>
 
           <div class="separator" id="orSeparator" style="display:none;">
@@ -320,7 +319,9 @@ async function handleCameraCapture(input) {
     const processed = processImage(img);
     scanPages.push(processed);
     renderScanPages();
-    updateAll();
+
+    // Auto-create PDF immediately (single page scan)
+    await buildPdfFromPages();
   } catch (err) {
     console.error('Scan error:', err);
     showToast('Failed to process image', 'error');
@@ -341,11 +342,10 @@ function loadImage(file) {
 
 // ── Image processing: edge detection + B&W ───────────────────────────────────
 function processImage(img) {
-  // Draw original to working canvas
   const work = document.createElement('canvas');
   const wCtx = work.getContext('2d');
-  // Limit to 2000px max dimension for performance
-  const scale = Math.min(1, 2000 / Math.max(img.width, img.height));
+  // Limit to 1200px max dimension — keeps PDF under 500KB per page
+  const scale = Math.min(1, 1200 / Math.max(img.width, img.height));
   work.width  = Math.round(img.width * scale);
   work.height = Math.round(img.height * scale);
   wCtx.drawImage(img, 0, 0, work.width, work.height);
@@ -636,7 +636,7 @@ function renderScanPages() {
   separator.style.display = 'flex';
 
   container.innerHTML = scanPages.map((canvas, i) => {
-    const thumb = canvas.toDataURL('image/jpeg', 0.5);
+    const thumb = canvas.toDataURL('image/jpeg', 0.3);
     return `<div class="scan-page">
       <img src="${thumb}" alt="Page ${i + 1}"/>
       <div class="scan-page-num">${i + 1}</div>
@@ -648,15 +648,29 @@ function renderScanPages() {
 function removeScanPage(i) {
   scanPages.splice(i, 1);
   renderScanPages();
-  updateAll();
+  // Rebuild PDF without that page
+  if (scanPages.length) {
+    buildPdfFromPages();
+  } else {
+    // Remove the scanned PDF from files
+    files = files.filter(f => f.name !== 'scanned-document.pdf');
+    renderFileList();
+    updateAll();
+  }
 }
 
-async function finalizeScan() {
+async function addMorePages() {
+  // Remove existing scanned PDF so it gets rebuilt with new pages
+  files = files.filter(f => f.name !== 'scanned-document.pdf');
+  openCamera();
+}
+
+async function buildPdfFromPages() {
   if (!scanPages.length) return;
 
   const { jsPDF } = window.jspdf;
 
-  // First page determines PDF orientation
+  // Use A4-ish proportions scaled to canvas size
   const first = scanPages[0];
   const landscape = first.width > first.height;
   const pdf = new jsPDF({
@@ -671,19 +685,23 @@ async function finalizeScan() {
       const l = canvas.width > canvas.height;
       pdf.addPage([canvas.width, canvas.height], l ? 'landscape' : 'portrait');
     }
-    const imgData = canvas.toDataURL('image/jpeg', 0.85);
+    // B&W images compress well at low quality
+    const imgData = canvas.toDataURL('image/jpeg', 0.5);
     pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
   }
 
   const blob = pdf.output('blob');
   const pdfFile = new File([blob], 'scanned-document.pdf', { type: 'application/pdf' });
 
+  // Replace any existing scanned PDF in files
+  files = files.filter(f => f.name !== 'scanned-document.pdf');
   files.push(pdfFile);
-  scanPages = [];
-  renderScanPages();
+
+  const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
+  showToast(`PDF created (${sizeMB} MB, ${scanPages.length} page${scanPages.length > 1 ? 's' : ''})`, 'success');
+
   renderFileList();
   updateAll();
-  showToast('PDF created from scan', 'success');
 }
 
 // ── File handling ─────────────────────────────────────────────────────────────
