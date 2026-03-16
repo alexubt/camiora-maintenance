@@ -108,11 +108,98 @@ input:focus, select:focus {
   pointer-events: none;
 }
 
+/* ── Scan zone ── */
+.scan-zone {
+  border: 1.5px solid var(--green-mid);
+  border-radius: var(--radius-lg);
+  padding: 28px 16px;
+  text-align: center; cursor: pointer;
+  background: var(--green-light);
+  transition: background 0.15s;
+}
+.scan-zone:active { background: var(--green-border); }
+.scan-zone .drop-icon {
+  border-color: var(--green-border);
+  background: var(--bg);
+}
+.scan-zone .drop-title { color: var(--green-dark); }
+
+.scan-processing {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  color: var(--green-dark); font-size: 14px; font-weight: 500;
+}
+.scan-spinner {
+  width: 24px; height: 24px;
+  border: 2.5px solid var(--green-border);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.scan-pages {
+  display: flex; gap: 10px; overflow-x: auto;
+  padding: 4px 0; margin-top: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+.scan-page {
+  position: relative; flex-shrink: 0;
+  width: 80px; height: 104px;
+  border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+}
+.scan-page img { width: 100%; height: 100%; object-fit: cover; }
+.scan-page-num {
+  position: absolute; bottom: 4px; left: 4px;
+  background: rgba(0,0,0,0.6); color: #fff;
+  font-size: 10px; font-weight: 600;
+  padding: 2px 6px; border-radius: 4px;
+}
+.scan-page-remove {
+  position: absolute; top: 2px; right: 2px;
+  width: 22px; height: 22px;
+  background: rgba(0,0,0,0.5); color: #fff;
+  border-radius: 50%; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+
+.scan-actions {
+  display: flex; gap: 10px; margin-top: 10px;
+}
+.scan-add-btn {
+  flex: 1; height: 44px; border-radius: var(--radius);
+  background: var(--bg-2); color: var(--text);
+  border: 1px solid var(--border-2);
+  font-size: 14px; font-weight: 500; cursor: pointer;
+  font-family: inherit; touch-action: manipulation;
+}
+.scan-add-btn:active { background: var(--bg-3); }
+.scan-done-btn {
+  flex: 1; height: 44px; border-radius: var(--radius);
+  background: var(--green); color: #fff;
+  border: none;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  font-family: inherit; touch-action: manipulation;
+}
+.scan-done-btn:active { background: var(--green-dark); }
+
+.separator {
+  display: flex; align-items: center; gap: 12px;
+  margin: 6px 0;
+  color: var(--text-3); font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.separator::before, .separator::after {
+  content: ""; flex: 1; height: 0.5px; background: var(--border);
+}
+
 /* ── Drop zone ── */
 .drop-zone {
   border: 1.5px dashed var(--border-2);
   border-radius: var(--radius-lg);
-  padding: 32px 16px;
+  padding: 24px 16px;
   text-align: center; cursor: pointer;
   background: var(--bg-2);
   position: relative;

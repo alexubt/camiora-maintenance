@@ -1,9 +1,9 @@
 // ── CONFIG — fill in before deploying ────────────────────────────────────────
 const CONFIG = {
   CLIENT_ID:      'd8a6756d-ed3c-4337-8146-bacf2f80ba37',
-  TENANT_ID:      'common',       // or 'common' for any M365 org
-  REDIRECT_URI:   'https://alexubt.github.io/camiora-maintenance/',  // must match Azure app registration
-  ONEDRIVE_BASE:  'Fleet Maintenance',                 // top-level folder in your OneDrive
+  TENANT_ID:      'common',
+  REDIRECT_URI:   'https://alexubt.github.io/camiora-maintenance/',
+  ONEDRIVE_BASE:  'Fleet Maintenance',
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -11,9 +11,10 @@ const SCOPES = 'Files.ReadWrite User.Read';
 const GRAPH  = 'https://graph.microsoft.com/v1.0';
 
 // ── App state ─────────────────────────────────────────────────────────────────
-let accessToken = null;
-let files       = [];
-let isUploading = false;
+let accessToken  = null;
+let files        = [];
+let isUploading  = false;
+let scanPages    = [];   // array of canvas elements (processed scans)
 
 // ── Auth (PKCE authorization code flow) ──────────────────────────────────────
 function generateRandomString(len) {
@@ -101,7 +102,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
-  // Check for auth code in URL (redirect back from Microsoft)
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
   if (code) {
@@ -226,6 +226,33 @@ function renderApp() {
 
         <div class="field">
           <label>Documents</label>
+
+          <div class="scan-zone" id="scanZone" onclick="openCamera()">
+            <div class="drop-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"
+                  stroke="var(--text-2)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="13" r="4" stroke="var(--text-2)" stroke-width="1.8"/>
+              </svg>
+            </div>
+            <div class="drop-title">Scan document</div>
+            <div class="drop-sub">Take a photo — auto-converts to B&W PDF</div>
+          </div>
+
+          <input type="file" id="cameraInput" accept="image/*" capture="environment"
+            style="display:none;" onchange="handleCameraCapture(this)"/>
+
+          <div class="scan-pages" id="scanPages"></div>
+
+          <div id="scanActions" class="scan-actions" style="display:none;">
+            <button class="scan-add-btn" onclick="openCamera()">+ Add page</button>
+            <button class="scan-done-btn" onclick="finalizeScan()">Done — create PDF</button>
+          </div>
+
+          <div class="separator" id="orSeparator" style="display:none;">
+            <span>or</span>
+          </div>
+
           <div class="drop-zone" id="dropZone">
             <input type="file" id="fileInput" multiple
               accept=".pdf,application/pdf"
@@ -236,9 +263,10 @@ function renderApp() {
                 <path d="M9 8h6M9 12h6M9 16h4" stroke="var(--text-2)" stroke-width="1.4" stroke-linecap="round"/>
               </svg>
             </div>
-            <div class="drop-title">Tap to select PDF</div>
-            <div class="drop-sub">Scan invoices as PDF before uploading</div>
+            <div class="drop-title">Pick existing PDF</div>
+            <div class="drop-sub">Already have the file? Select it here</div>
           </div>
+
           <div class="file-list" id="fileList"></div>
         </div>
 
@@ -269,6 +297,393 @@ function renderApp() {
   dz.addEventListener('dragover',  e => { e.preventDefault(); dz.style.borderColor = 'var(--green-mid)'; });
   dz.addEventListener('dragleave', ()  => { dz.style.borderColor = ''; });
   dz.addEventListener('drop',      e  => { e.preventDefault(); dz.style.borderColor = ''; handleFiles(e.dataTransfer.files); });
+}
+
+// ── Scanner: open camera ─────────────────────────────────────────────────────
+function openCamera() {
+  document.getElementById('cameraInput').value = '';
+  document.getElementById('cameraInput').click();
+}
+
+async function handleCameraCapture(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+
+  // Show processing state
+  const zone = document.getElementById('scanZone');
+  const origHTML = zone.innerHTML;
+  zone.innerHTML = `<div class="scan-processing"><div class="scan-spinner"></div><div>Processing…</div></div>`;
+  zone.style.pointerEvents = 'none';
+
+  try {
+    const img = await loadImage(file);
+    const processed = processImage(img);
+    scanPages.push(processed);
+    renderScanPages();
+    updateAll();
+  } catch (err) {
+    console.error('Scan error:', err);
+    showToast('Failed to process image', 'error');
+  }
+
+  zone.innerHTML = origHTML;
+  zone.style.pointerEvents = '';
+}
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(img.src); resolve(img); };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+// ── Image processing: edge detection + B&W ───────────────────────────────────
+function processImage(img) {
+  // Draw original to working canvas
+  const work = document.createElement('canvas');
+  const wCtx = work.getContext('2d');
+  // Limit to 2000px max dimension for performance
+  const scale = Math.min(1, 2000 / Math.max(img.width, img.height));
+  work.width  = Math.round(img.width * scale);
+  work.height = Math.round(img.height * scale);
+  wCtx.drawImage(img, 0, 0, work.width, work.height);
+
+  // Get image data
+  const imageData = wCtx.getImageData(0, 0, work.width, work.height);
+  const w = work.width;
+  const h = work.height;
+
+  // Step 1: Grayscale
+  const gray = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const r = imageData.data[i * 4];
+    const g = imageData.data[i * 4 + 1];
+    const b = imageData.data[i * 4 + 2];
+    gray[i] = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+  }
+
+  // Step 2: Gaussian blur (5x5)
+  const blurred = gaussianBlur(gray, w, h);
+
+  // Step 3: Edge detection (Canny-like with Sobel)
+  const edges = sobelEdges(blurred, w, h);
+
+  // Step 4: Find document contour
+  const corners = findDocumentCorners(edges, w, h);
+
+  // Step 5: Perspective warp if corners found, otherwise use full image
+  let output;
+  if (corners) {
+    output = perspectiveWarp(work, corners);
+  } else {
+    output = work;
+  }
+
+  // Step 6: Apply adaptive threshold B&W filter for scanned look
+  applyAdaptiveThreshold(output);
+
+  return output;
+}
+
+function gaussianBlur(gray, w, h) {
+  const kernel = [1, 4, 6, 4, 1, 4, 16, 24, 16, 4, 6, 24, 36, 24, 6, 4, 16, 24, 16, 4, 1, 4, 6, 4, 1];
+  const out = new Uint8Array(w * h);
+  for (let y = 2; y < h - 2; y++) {
+    for (let x = 2; x < w - 2; x++) {
+      let sum = 0;
+      for (let ky = -2; ky <= 2; ky++) {
+        for (let kx = -2; kx <= 2; kx++) {
+          sum += gray[(y + ky) * w + (x + kx)] * kernel[(ky + 2) * 5 + (kx + 2)];
+        }
+      }
+      out[y * w + x] = sum / 256;
+    }
+  }
+  return out;
+}
+
+function sobelEdges(gray, w, h) {
+  const edges = new Uint8Array(w * h);
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const gx =
+        -gray[(y - 1) * w + (x - 1)] + gray[(y - 1) * w + (x + 1)]
+        -2 * gray[y * w + (x - 1)]   + 2 * gray[y * w + (x + 1)]
+        -gray[(y + 1) * w + (x - 1)] + gray[(y + 1) * w + (x + 1)];
+      const gy =
+        -gray[(y - 1) * w + (x - 1)] - 2 * gray[(y - 1) * w + x] - gray[(y - 1) * w + (x + 1)]
+        +gray[(y + 1) * w + (x - 1)] + 2 * gray[(y + 1) * w + x] + gray[(y + 1) * w + (x + 1)];
+      edges[y * w + x] = Math.min(255, Math.sqrt(gx * gx + gy * gy));
+    }
+  }
+  return edges;
+}
+
+function findDocumentCorners(edges, w, h) {
+  // Threshold edges
+  const threshold = 50;
+  const margin = Math.round(Math.min(w, h) * 0.02);
+
+  // Find edge points along each side to detect document boundary
+  // Scan from each edge inward to find the first strong edge line
+  const topEdge = [], bottomEdge = [], leftEdge = [], rightEdge = [];
+
+  // Sample columns for top/bottom edges
+  const cols = 20;
+  for (let ci = 0; ci < cols; ci++) {
+    const x = Math.round(margin + (w - 2 * margin) * ci / (cols - 1));
+    // Top: scan down
+    for (let y = margin; y < h / 2; y++) {
+      if (edges[y * w + x] > threshold) { topEdge.push({ x, y }); break; }
+    }
+    // Bottom: scan up
+    for (let y = h - margin - 1; y > h / 2; y--) {
+      if (edges[y * w + x] > threshold) { bottomEdge.push({ x, y }); break; }
+    }
+  }
+
+  // Sample rows for left/right edges
+  const rows = 20;
+  for (let ri = 0; ri < rows; ri++) {
+    const y = Math.round(margin + (h - 2 * margin) * ri / (rows - 1));
+    // Left: scan right
+    for (let x = margin; x < w / 2; x++) {
+      if (edges[y * w + x] > threshold) { leftEdge.push({ x, y }); break; }
+    }
+    // Right: scan left
+    for (let x = w - margin - 1; x > w / 2; x--) {
+      if (edges[y * w + x] > threshold) { rightEdge.push({ x, y }); break; }
+    }
+  }
+
+  // Need enough points to fit lines
+  if (topEdge.length < 3 || bottomEdge.length < 3 || leftEdge.length < 3 || rightEdge.length < 3) {
+    return null;
+  }
+
+  // Fit lines using RANSAC-lite (median of points)
+  const fitLine = (points) => {
+    points.sort((a, b) => a.x - b.x || a.y - b.y);
+    const mid = Math.floor(points.length / 2);
+    // Use endpoints for line
+    return { p1: points[0], p2: points[points.length - 1] };
+  };
+
+  const top    = fitLine(topEdge);
+  const bottom = fitLine(bottomEdge);
+  const left   = fitLine(leftEdge);
+  const right  = fitLine(rightEdge);
+
+  // Intersect lines to get 4 corners
+  const intersect = (l1, l2) => {
+    const x1 = l1.p1.x, y1 = l1.p1.y, x2 = l1.p2.x, y2 = l1.p2.y;
+    const x3 = l2.p1.x, y3 = l2.p1.y, x4 = l2.p2.x, y4 = l2.p2.y;
+    const d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+    if (Math.abs(d) < 0.001) return null;
+    const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / d;
+    return { x: x1 + t * (x2 - x1), y: y1 + t * (y2 - y1) };
+  };
+
+  const tl = intersect(top, left);
+  const tr = intersect(top, right);
+  const br = intersect(bottom, right);
+  const bl = intersect(bottom, left);
+
+  if (!tl || !tr || !br || !bl) return null;
+
+  // Validate corners are inside image and form a reasonable quad
+  const allInside = [tl, tr, br, bl].every(p =>
+    p.x >= -w * 0.1 && p.x <= w * 1.1 && p.y >= -h * 0.1 && p.y <= h * 1.1
+  );
+  if (!allInside) return null;
+
+  // Check quad area is at least 15% of image
+  const quadArea = 0.5 * Math.abs(
+    (tr.x - tl.x) * (bl.y - tl.y) - (bl.x - tl.x) * (tr.y - tl.y)
+  ) + 0.5 * Math.abs(
+    (tr.x - br.x) * (bl.y - br.y) - (bl.x - br.x) * (tr.y - br.y)
+  );
+  if (quadArea < w * h * 0.15) return null;
+
+  return { tl, tr, br, bl };
+}
+
+function perspectiveWarp(srcCanvas, corners) {
+  const { tl, tr, br, bl } = corners;
+
+  // Output dimensions: max of top/bottom width and left/right height
+  const widthTop    = Math.hypot(tr.x - tl.x, tr.y - tl.y);
+  const widthBottom = Math.hypot(br.x - bl.x, br.y - bl.y);
+  const heightLeft  = Math.hypot(bl.x - tl.x, bl.y - tl.y);
+  const heightRight = Math.hypot(br.x - tr.x, br.y - tr.y);
+
+  const outW = Math.round(Math.max(widthTop, widthBottom));
+  const outH = Math.round(Math.max(heightLeft, heightRight));
+
+  const out = document.createElement('canvas');
+  out.width  = outW;
+  out.height = outH;
+  const outCtx = out.getContext('2d');
+
+  const srcCtx = srcCanvas.getContext('2d');
+  const srcData = srcCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height);
+  const outData = outCtx.createImageData(outW, outH);
+
+  // Bilinear interpolation with inverse perspective mapping
+  for (let dy = 0; dy < outH; dy++) {
+    for (let dx = 0; dx < outW; dx++) {
+      const u = dx / outW;
+      const v = dy / outH;
+
+      // Bilinear interpolation of source position from quad corners
+      const sx = (1 - u) * (1 - v) * tl.x + u * (1 - v) * tr.x + u * v * br.x + (1 - u) * v * bl.x;
+      const sy = (1 - u) * (1 - v) * tl.y + u * (1 - v) * tr.y + u * v * br.y + (1 - u) * v * bl.y;
+
+      const x0 = Math.floor(sx);
+      const y0 = Math.floor(sy);
+      const fx = sx - x0;
+      const fy = sy - y0;
+
+      if (x0 < 0 || x0 >= srcCanvas.width - 1 || y0 < 0 || y0 >= srcCanvas.height - 1) continue;
+
+      const idx = (dy * outW + dx) * 4;
+      for (let c = 0; c < 3; c++) {
+        const p00 = srcData.data[(y0 * srcCanvas.width + x0) * 4 + c];
+        const p10 = srcData.data[(y0 * srcCanvas.width + x0 + 1) * 4 + c];
+        const p01 = srcData.data[((y0 + 1) * srcCanvas.width + x0) * 4 + c];
+        const p11 = srcData.data[((y0 + 1) * srcCanvas.width + x0 + 1) * 4 + c];
+        outData.data[idx + c] = Math.round(
+          p00 * (1 - fx) * (1 - fy) + p10 * fx * (1 - fy) +
+          p01 * (1 - fx) * fy + p11 * fx * fy
+        );
+      }
+      outData.data[idx + 3] = 255;
+    }
+  }
+
+  outCtx.putImageData(outData, 0, 0);
+  return out;
+}
+
+function applyAdaptiveThreshold(canvas) {
+  const ctx = canvas.getContext('2d');
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = imageData.data;
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // Convert to grayscale
+  const gray = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    gray[i] = Math.round(0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]);
+  }
+
+  // Compute integral image for fast mean calculation
+  const integral = new Float64Array((w + 1) * (h + 1));
+  for (let y = 0; y < h; y++) {
+    let rowSum = 0;
+    for (let x = 0; x < w; x++) {
+      rowSum += gray[y * w + x];
+      integral[(y + 1) * (w + 1) + (x + 1)] = rowSum + integral[y * (w + 1) + (x + 1)];
+    }
+  }
+
+  // Adaptive threshold using local mean
+  const blockSize = Math.max(15, Math.round(Math.min(w, h) / 30) | 1);
+  const C = 8; // constant subtracted from mean
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const r = Math.floor(blockSize / 2);
+      const y1 = Math.max(0, y - r);
+      const y2 = Math.min(h - 1, y + r);
+      const x1 = Math.max(0, x - r);
+      const x2 = Math.min(w - 1, x + r);
+
+      const area = (y2 - y1 + 1) * (x2 - x1 + 1);
+      const sum = integral[(y2 + 1) * (w + 1) + (x2 + 1)]
+                - integral[y1 * (w + 1) + (x2 + 1)]
+                - integral[(y2 + 1) * (w + 1) + x1]
+                + integral[y1 * (w + 1) + x1];
+      const mean = sum / area;
+
+      const val = gray[y * w + x] > (mean - C) ? 255 : 0;
+      const idx = (y * w + x) * 4;
+      d[idx] = d[idx + 1] = d[idx + 2] = val;
+      d[idx + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
+// ── Scan pages UI ─────────────────────────────────────────────────────────────
+function renderScanPages() {
+  const container = document.getElementById('scanPages');
+  const actions   = document.getElementById('scanActions');
+  const separator = document.getElementById('orSeparator');
+
+  if (!scanPages.length) {
+    container.innerHTML = '';
+    actions.style.display = 'none';
+    separator.style.display = 'none';
+    return;
+  }
+
+  actions.style.display = 'flex';
+  separator.style.display = 'flex';
+
+  container.innerHTML = scanPages.map((canvas, i) => {
+    const thumb = canvas.toDataURL('image/jpeg', 0.5);
+    return `<div class="scan-page">
+      <img src="${thumb}" alt="Page ${i + 1}"/>
+      <div class="scan-page-num">${i + 1}</div>
+      <div class="scan-page-remove" onclick="removeScanPage(${i})">×</div>
+    </div>`;
+  }).join('');
+}
+
+function removeScanPage(i) {
+  scanPages.splice(i, 1);
+  renderScanPages();
+  updateAll();
+}
+
+async function finalizeScan() {
+  if (!scanPages.length) return;
+
+  const { jsPDF } = window.jspdf;
+
+  // First page determines PDF orientation
+  const first = scanPages[0];
+  const landscape = first.width > first.height;
+  const pdf = new jsPDF({
+    orientation: landscape ? 'landscape' : 'portrait',
+    unit: 'px',
+    format: [first.width, first.height],
+  });
+
+  for (let i = 0; i < scanPages.length; i++) {
+    const canvas = scanPages[i];
+    if (i > 0) {
+      const l = canvas.width > canvas.height;
+      pdf.addPage([canvas.width, canvas.height], l ? 'landscape' : 'portrait');
+    }
+    const imgData = canvas.toDataURL('image/jpeg', 0.85);
+    pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
+  }
+
+  const blob = pdf.output('blob');
+  const pdfFile = new File([blob], 'scanned-document.pdf', { type: 'application/pdf' });
+
+  files.push(pdfFile);
+  scanPages = [];
+  renderScanPages();
+  renderFileList();
+  updateAll();
+  showToast('PDF created from scan', 'success');
 }
 
 // ── File handling ─────────────────────────────────────────────────────────────
