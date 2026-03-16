@@ -129,27 +129,70 @@ function extractAndFill(text) {
   return filled;
 }
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
-function getAuthUrl() {
+// ── Auth (PKCE authorization code flow) ──────────────────────────────────────
+function generateRandomString(len) {
+  const arr = new Uint8Array(len);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('').slice(0, len);
+}
+
+async function generatePKCE() {
+  const verifier = generateRandomString(64);
+  const data = new TextEncoder().encode(verifier);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  const challenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return { verifier, challenge };
+}
+
+async function startLogin() {
+  const { verifier, challenge } = await generatePKCE();
+  sessionStorage.setItem('pkce_verifier', verifier);
+
   const p = new URLSearchParams({
-    client_id:     CONFIG.CLIENT_ID,
-    response_type: 'token',
-    redirect_uri:  CONFIG.REDIRECT_URI,
-    scope:         SCOPES,
-    response_mode: 'fragment',
-    prompt:        'select_account',
+    client_id:             CONFIG.CLIENT_ID,
+    response_type:         'code',
+    redirect_uri:          CONFIG.REDIRECT_URI,
+    scope:                 SCOPES,
+    response_mode:         'query',
+    prompt:                'select_account',
+    code_challenge:        challenge,
+    code_challenge_method: 'S256',
   });
-  return `https://login.microsoftonline.com/${CONFIG.TENANT_ID}/oauth2/v2.0/authorize?${p}`;
+  window.location.href = `https://login.microsoftonline.com/${CONFIG.TENANT_ID}/oauth2/v2.0/authorize?${p}`;
 }
 
-function parseTokenFromHash() {
-  const p = new URLSearchParams(window.location.hash.substring(1));
-  return p.get('access_token') || null;
+async function exchangeCodeForToken(code) {
+  const verifier = sessionStorage.getItem('pkce_verifier');
+  if (!verifier) return null;
+
+  const body = new URLSearchParams({
+    client_id:     CONFIG.CLIENT_ID,
+    grant_type:    'authorization_code',
+    code:          code,
+    redirect_uri:  CONFIG.REDIRECT_URI,
+    code_verifier: verifier,
+    scope:         SCOPES,
+  });
+
+  const resp = await fetch(
+    `https://login.microsoftonline.com/${CONFIG.TENANT_ID}/oauth2/v2.0/token`,
+    { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body }
+  );
+
+  if (!resp.ok) {
+    console.error('Token exchange failed', await resp.text());
+    return null;
+  }
+
+  const data = await resp.json();
+  sessionStorage.removeItem('pkce_verifier');
+  return data;
 }
 
-function saveToken(token) {
+function saveToken(token, expiresIn) {
   sessionStorage.setItem('ms_token', token);
-  sessionStorage.setItem('ms_token_exp', Date.now() + 3600 * 1000);
+  sessionStorage.setItem('ms_token_exp', Date.now() + (expiresIn || 3600) * 1000);
   accessToken = token;
 }
 
@@ -163,22 +206,26 @@ function loadToken() {
 function signOut() {
   sessionStorage.clear();
   accessToken = null;
-  window.location.hash = '';
   renderAuth();
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
-  const token = parseTokenFromHash();
-  if (token) {
-    saveToken(token);
+  // Check for auth code in URL (redirect back from Microsoft)
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if (code) {
     history.replaceState(null, '', window.location.pathname);
-    renderApp();
-    return;
+    const tokenData = await exchangeCodeForToken(code);
+    if (tokenData && tokenData.access_token) {
+      saveToken(tokenData.access_token, tokenData.expires_in);
+      renderApp();
+      return;
+    }
   }
 
   loadToken() ? renderApp() : renderAuth();
@@ -200,7 +247,7 @@ function renderAuth() {
         <p class="auth-sub" style="margin-top:6px;">Fleet maintenance records</p>
       </div>
       <p class="auth-sub">Sign in with your Microsoft 365 account to upload records directly to OneDrive.</p>
-      <button class="auth-btn" onclick="window.location.href = getAuthUrl()">
+      <button class="auth-btn" onclick="startLogin()">
         <svg width="20" height="20" viewBox="0 0 21 21" fill="none">
           <rect x="1"  y="1"  width="9" height="9" fill="#f25022"/>
           <rect x="11" y="1"  width="9" height="9" fill="#7fba00"/>
