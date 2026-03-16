@@ -2,7 +2,7 @@
 const CONFIG = {
   CLIENT_ID:      'd8a6756d-ed3c-4337-8146-bacf2f80ba37',
   TENANT_ID:      'common',       // or 'common' for any M365 org
-  REDIRECT_URI:   'https://alexubt.github.io/camiora-maintenance',  // must match Azure app registration
+  REDIRECT_URI:   'https://alexubt.github.io/camiora-maintenance/',  // must match Azure app registration
   ONEDRIVE_BASE:  'Fleet Maintenance',                 // top-level folder in your OneDrive
 };
 // No API keys. OCR runs on-device via Tesseract.js. Zero cost. Zero data sent.
@@ -170,7 +170,7 @@ function signOut() {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
   const token = parseTokenFromHash();

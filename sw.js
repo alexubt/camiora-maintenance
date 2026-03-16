@@ -1,12 +1,12 @@
-const CACHE = 'camiora-v2';
+const CACHE = 'camiora-v3';
 const STATIC = [
-  '/',
-  '/index.html',
-  '/app.js',
-  '/style.css',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  './',
+  './index.html',
+  './app.js',
+  './style.css',
+  './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
 ];
 
 self.addEventListener('install', e => {
@@ -26,8 +26,11 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Network-first for Tesseract CDN assets (large, versioned)
-  if (e.request.url.includes('cdnjs.cloudflare.com') || e.request.url.includes('unpkg.com')) {
+  // Never intercept navigation requests — let the auth redirect flow through
+  if (e.request.mode === 'navigate') return;
+
+  // Network-first for CDN assets (Tesseract, etc.)
+  if (e.request.url.includes('cdn.jsdelivr.net') || e.request.url.includes('cdnjs.cloudflare.com') || e.request.url.includes('unpkg.com')) {
     e.respondWith(
       fetch(e.request)
         .then(r => {
