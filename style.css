@@ -108,26 +108,6 @@ input:focus, select:focus {
   pointer-events: none;
 }
 
-/* ── OCR status ── */
-.ocr-bar {
-  display: none; align-items: center; gap: 10px;
-  background: var(--green-light);
-  border: 0.5px solid var(--green-border);
-  border-radius: var(--radius);
-  padding: 11px 14px;
-  font-size: 13px; color: var(--green-dark);
-}
-.ocr-bar.active { display: flex; }
-.ocr-spinner {
-  width: 16px; height: 16px; flex-shrink: 0;
-  border: 2px solid var(--green-border);
-  border-top-color: var(--green);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.ocr-check { flex-shrink: 0; color: var(--green); font-size: 16px; }
-
 /* ── Drop zone ── */
 .drop-zone {
   border: 1.5px dashed var(--border-2);

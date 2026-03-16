@@ -5,7 +5,6 @@ const CONFIG = {
   REDIRECT_URI:   'https://alexubt.github.io/camiora-maintenance/',  // must match Azure app registration
   ONEDRIVE_BASE:  'Fleet Maintenance',                 // top-level folder in your OneDrive
 };
-// No API keys. OCR runs on-device via Tesseract.js. Zero cost. Zero data sent.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SCOPES = 'Files.ReadWrite User.Read';
@@ -15,119 +14,6 @@ const GRAPH  = 'https://graph.microsoft.com/v1.0';
 let accessToken = null;
 let files       = [];
 let isUploading = false;
-let tesseractWorker = null;
-
-// ── Tesseract worker (lazy-loaded) ───────────────────────────────────────────
-async function getTesseract() {
-  if (tesseractWorker) return tesseractWorker;
-  // Tesseract.js loaded via <script> tag in index.html
-  const worker = await Tesseract.createWorker('eng', 1, {
-    workerPath:  'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-    langPath:    'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tessdata',
-    corePath:    'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core-simd-lstm.wasm.js',
-    logger: m => {
-      if (m.status === 'recognizing text') {
-        const pct = Math.round((m.progress || 0) * 100);
-        const msg = document.getElementById('ocrMsg');
-        if (msg) msg.textContent = `Reading document… ${pct}%`;
-      }
-    }
-  });
-  tesseractWorker = worker;
-  return worker;
-}
-
-// ── OCR — runs entirely on device ────────────────────────────────────────────
-async function runOCR(file) {
-  const bar = document.getElementById('ocrBar');
-  const msg = document.getElementById('ocrMsg');
-  const ico = document.getElementById('ocrIco');
-  if (!bar || !msg || !ico) return;
-
-  bar.className = 'ocr-bar active';
-  ico.innerHTML = '<div class="ocr-spinner"></div>';
-  msg.textContent = 'Loading OCR engine…';
-
-  try {
-    const worker = await getTesseract();
-    msg.textContent = 'Reading document…';
-
-    const url = URL.createObjectURL(file);
-    const { data: { text } } = await worker.recognize(url);
-    URL.revokeObjectURL(url);
-
-    const filled = extractAndFill(text);
-
-    ico.innerHTML = '<span class="ocr-check">✓</span>';
-    msg.textContent = filled.length
-      ? `Auto-filled: ${filled.join(', ')}`
-      : 'No data found — fill in manually';
-
-    setTimeout(() => { bar.className = 'ocr-bar'; }, 5000);
-
-  } catch (err) {
-    console.error('OCR error:', err);
-    bar.className = 'ocr-bar';
-  }
-}
-
-// Extract unit number, date, mileage from raw OCR text
-function extractAndFill(text) {
-  const filled = [];
-
-  // Unit number: patterns like TR-042, T042, TRUCK 42, UNIT 042, trailer 7
-  if (!document.getElementById('unitNum')?.value) {
-    const unitMatch =
-      text.match(/\b(?:truck|trailer|unit|tr|tl)[#\-\s]*(\d{1,4})\b/i) ||
-      text.match(/\bunit\s*#?\s*(\d{1,4})\b/i) ||
-      text.match(/\b(T|TR|TL)[- ]?(\d{2,4})\b/i);
-    if (unitMatch) {
-      const num = unitMatch[unitMatch.length - 1];
-      const el = document.getElementById('unitNum');
-      if (el) { el.value = num.replace(/\D/g, ''); filled.push('unit #'); }
-    }
-  }
-
-  // Date: MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD, written months
-  const datePatterns = [
-    /\b(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})\b/,           // YYYY-MM-DD
-    /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/,            // MM/DD/YYYY
-    /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4})\b/i,
-  ];
-  for (const pat of datePatterns) {
-    const m = text.match(pat);
-    if (m) {
-      let iso = '';
-      if (pat.source.startsWith('\\b(\\d{4})')) {
-        iso = `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
-      } else if (pat.source.startsWith('\\b(\\d{1,2})')) {
-        iso = `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
-      } else {
-        const months = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
-        const mo = months[m[1].toLowerCase().slice(0,3)];
-        iso = `${m[3]}-${mo}-${m[2].padStart(2,'0')}`;
-      }
-      const el = document.getElementById('serviceDate');
-      if (el) { el.value = iso; filled.push('date'); }
-      break;
-    }
-  }
-
-  // Mileage: 124,500 miles / 98200 mi / odometer: 45000
-  if (!document.getElementById('mileage')?.value) {
-    const miMatch =
-      text.match(/\b(\d{2,3}[,\s]?\d{3})\s*(?:mi(?:les?)?|odometer)\b/i) ||
-      text.match(/(?:odometer|mileage|odo)[:\s]*(\d[\d,\s]{3,})/i);
-    if (miMatch) {
-      const raw = miMatch[1].replace(/[,\s]/g, '');
-      const el = document.getElementById('mileage');
-      if (el) { el.value = raw; filled.push('mileage'); }
-    }
-  }
-
-  updateAll();
-  return filled;
-}
 
 // ── Auth (PKCE authorization code flow) ──────────────────────────────────────
 function generateRandomString(len) {
@@ -282,11 +168,6 @@ function renderApp() {
     <div class="scroll-body">
       <div class="form-body">
 
-        <div id="ocrBar" class="ocr-bar">
-          <span id="ocrIco"><div class="ocr-spinner"></div></span>
-          <span id="ocrMsg">Reading document…</span>
-        </div>
-
         <div class="row">
           <div class="field">
             <label>Unit type</label>
@@ -347,17 +228,16 @@ function renderApp() {
           <label>Documents</label>
           <div class="drop-zone" id="dropZone">
             <input type="file" id="fileInput" multiple
-              accept="image/*,.pdf"
+              accept=".pdf,application/pdf"
               onchange="handleFiles(this.files)"/>
             <div class="drop-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path d="M12 16V8M12 8L9 11M12 8L15 11"
-                  stroke="var(--text-2)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3 19h18" stroke="var(--text-2)" stroke-width="1.8" stroke-linecap="round"/>
+                <rect x="5" y="2" width="14" height="20" rx="2" stroke="var(--text-2)" stroke-width="1.8" fill="none"/>
+                <path d="M9 8h6M9 12h6M9 16h4" stroke="var(--text-2)" stroke-width="1.4" stroke-linecap="round"/>
               </svg>
             </div>
-            <div class="drop-title">Tap to scan or pick file</div>
-            <div class="drop-sub">Camera · Photos · PDF</div>
+            <div class="drop-title">Tap to select PDF</div>
+            <div class="drop-sub">Scan invoices as PDF before uploading</div>
           </div>
           <div class="file-list" id="fileList"></div>
         </div>
@@ -392,14 +272,10 @@ function renderApp() {
 }
 
 // ── File handling ─────────────────────────────────────────────────────────────
-async function handleFiles(newFiles) {
+function handleFiles(newFiles) {
   for (const f of newFiles) files.push(f);
   renderFileList();
   updateAll();
-
-  // OCR: run on first image file added
-  const img = [...newFiles].find(f => f.type.startsWith('image/'));
-  if (img) runOCR(img);
 }
 
 function removeFile(i) {
@@ -414,18 +290,14 @@ function renderFileList() {
   if (!files.length) { list.innerHTML = ''; return; }
 
   list.innerHTML = files.map((f, i) => {
-    const isImg = f.type.startsWith('image/');
     const name  = getBaseName(i);
     const ext   = f.name.split('.').pop();
-    const thumb = isImg ? URL.createObjectURL(f) : null;
     return `<div class="file-item">
       <div class="file-thumb">
-        ${thumb
-          ? `<img src="${thumb}" alt=""/>`
-          : `<svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-               <rect x="3" y="1" width="12" height="16" rx="2" stroke="var(--text-3)" stroke-width="1.2"/>
-               <path d="M6 6h6M6 9h6M6 12h4" stroke="var(--text-3)" stroke-width="1"/>
-             </svg>`}
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <rect x="3" y="1" width="12" height="16" rx="2" stroke="var(--text-3)" stroke-width="1.2"/>
+          <path d="M6 6h6M6 9h6M6 12h4" stroke="var(--text-3)" stroke-width="1"/>
+        </svg>
       </div>
       <div class="file-info">
         <div class="file-orig">${f.name}</div>
