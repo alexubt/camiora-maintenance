@@ -44,7 +44,7 @@
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: Home Screen install prompt for iOS/Android
+- [x] **INFRA-01**: Home Screen install prompt for iOS/Android
 - [ ] **INFRA-02**: Silent token refresh (no re-login interruption after 1 hour)
 - [ ] **INFRA-03**: Offline queue for uploads, sync when reconnected
 - [x] **INFRA-04**: ES module refactor of existing monolith `app.js`
@@ -107,7 +107,7 @@
 | FLEET-06 | Phase 4 | Complete |
 | DASH-01 | Phase 5 | Complete |
 | DASH-02 | Phase 5 | Complete |
-| INFRA-01 | Phase 6 | Pending |
+| INFRA-01 | Phase 6 | Complete |
 | INFRA-02 | Phase 6 | Pending |
 | INFRA-03 | Phase 6 | Pending |
 

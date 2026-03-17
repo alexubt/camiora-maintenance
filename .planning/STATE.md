@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-03-17T05:50:59.255Z"
-last_activity: 2026-03-17 — Completed 05-01 Dashboard view
+status: in-progress
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-03-17T06:07:14Z"
+last_activity: 2026-03-17 — Completed 06-02 PWA install prompt
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 13
-  completed_plans: 13
-  percent: 83
+  total_plans: 16
+  completed_plans: 15
+  percent: 88
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Scan an invoice on a phone, have it auto-named and filed in the right OneDrive folder — saves hundreds of hours of manual data entry
-**Current focus:** Phase 5 complete — Dashboard built
+**Current focus:** Phase 6 in progress — Auth hardening and PWA reliability
 
 ## Current Position
 
-Phase: 5 of 6 (Dashboard) -- COMPLETE
-Plan: 1 of 1 in current phase -- COMPLETE
-Status: Phase Complete
-Last activity: 2026-03-17 — Completed 05-01 Dashboard view
+Phase: 6 of 6 (Auth Hardening & PWA Reliability)
+Plan: 2 of 3 in current phase -- COMPLETE
+Status: In Progress
+Last activity: 2026-03-17 — Completed 06-02 PWA install prompt
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [████████░░] 83%
 | Phase 04 P02 | 4min | 2 tasks | 5 files |
 | Phase 04 P03 | 1min | 1 tasks | 0 files |
 | Phase 05 P01 | 3min | 2 tasks | 4 files |
+| Phase 06 P02 | 3min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,9 @@ Recent decisions affecting current work:
 - [Phase 04]: Auto-approved Phase 4 verification checkpoint -- all maintenance tracking requirements confirmed
 - 05-01: Local escapeHtml in dashboard.js to avoid coupling to unit-detail.js
 - 05-01: Dashboard re-renders via hashchange dispatch after fleet data loads
+- 06-02: Install banner appended to document.body (not #app) so it survives route changes
+- 06-02: sessionStorage for banner dismissal -- resets each browser session
+- 06-02: beforeinstallprompt listener at module load, initInstallPrompt() called after router init
 
 ### Pending Todos
 
@@ -113,6 +117,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T05:46:54Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-03-17T06:07:14Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None

@@ -109,7 +109,7 @@ Plans:
   1. A user who leaves the app open for over an hour can still upload without being interrupted by an auth error
   2. An upload started while offline is queued and automatically retried when the connection is restored
   3. The app prompts users to install it to the Home Screen on both iOS and Android, and once installed behaves as a standalone app
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 06-01-PLAN.md — Silent token refresh: offline_access scope, refreshAccessToken, getValidToken, wire all API callers
@@ -128,4 +128,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 3. Invoice Workflow | 0/3 | Complete    | 2026-03-17 |
 | 4. Maintenance Tracking | 3/3 | Complete    | 2026-03-17 |
 | 5. Dashboard | 1/1 | Complete    | 2026-03-17 |
-| 6. Auth Hardening and PWA Reliability | 0/3 | Not started | - |
+| 6. Auth Hardening and PWA Reliability | 1/3 | In Progress|  |
