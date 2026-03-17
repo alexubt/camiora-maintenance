@@ -6,6 +6,10 @@
 import { state } from '../state.js';
 import { downloadCSV, parseCSV } from '../graph/csv.js';
 import { isOverdue, getDueDate, getDueMiles } from '../maintenance/schedule.js';
+import { appendUnit } from '../fleet/units.js';
+import { getValidToken } from '../graph/auth.js';
+import { refreshUnitSelect } from './upload.js';
+import { setCachedFleet } from '../storage/cache.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -177,6 +181,46 @@ function renderDashboard(container, allMaintenance, allCondition) {
       </a>`;
   }
 
+  const emptyStateHtml = `
+    <div style="text-align:center;padding:24px 0;">
+      <p style="color:var(--text-2);margin:0 0 12px;">Your roster is empty. Add your first unit to get started.</p>
+      <div id="addUnitForm">
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+          <input id="newUnitId" type="text" placeholder="Unit ID (e.g. TR-042)" maxlength="30"
+            style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;width:160px;">
+          <select id="newUnitType" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;">
+            <option value="Truck">Truck</option>
+            <option value="Trailer">Trailer</option>
+            <option value="Van">Van</option>
+            <option value="Reefer">Reefer</option>
+            <option value="Other">Other</option>
+          </select>
+          <button id="addUnitBtn" style="padding:8px 16px;background:var(--green-dark);color:#fff;border:none;border-radius:var(--radius);font-size:14px;cursor:pointer;">Add Unit</button>
+        </div>
+        <p id="addUnitError" style="color:#dc3545;font-size:13px;margin:8px 0 0;display:none;"></p>
+      </div>
+    </div>`;
+
+  const addUnitBtnHtml = `
+    <div style="margin-top:12px;text-align:center;">
+      <button id="showAddUnitBtn" style="padding:6px 14px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;cursor:pointer;color:var(--text-2);">+ Add unit</button>
+      <div id="addUnitForm" style="display:none;margin-top:10px;">
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+          <input id="newUnitId" type="text" placeholder="Unit ID (e.g. TR-042)" maxlength="30"
+            style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;width:160px;">
+          <select id="newUnitType" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;">
+            <option value="Truck">Truck</option>
+            <option value="Trailer">Trailer</option>
+            <option value="Van">Van</option>
+            <option value="Reefer">Reefer</option>
+            <option value="Other">Other</option>
+          </select>
+          <button id="addUnitBtn" style="padding:8px 16px;background:var(--green-dark);color:#fff;border:none;border-radius:var(--radius);font-size:14px;cursor:pointer;">Add Unit</button>
+        </div>
+        <p id="addUnitError" style="color:#dc3545;font-size:13px;margin:8px 0 0;display:none;"></p>
+      </div>
+    </div>`;
+
   container.innerHTML = `
     <div style="padding:16px;padding-bottom:80px;">
       <h2 style="margin:0 0 16px;">Dashboard</h2>
@@ -186,10 +230,84 @@ function renderDashboard(container, allMaintenance, allCondition) {
       <div style="margin-top:20px;">
         <h3 style="margin:0 0 10px;font-size:16px;">Fleet <span style="color:var(--text-2);font-weight:400;font-size:14px;">(${units.length})</span></h3>
         <div class="dash-grid">
-          ${cardsHtml || '<p style="color:var(--text-2);">No units loaded. Sign in and upload a fleet CSV.</p>'}
+          ${cardsHtml || emptyStateHtml}
         </div>
+        ${cardsHtml ? addUnitBtnHtml : ''}
       </div>
     </div>`;
+
+  // Wire up "Add unit" interactions
+  const showBtn = document.getElementById('showAddUnitBtn');
+  if (showBtn) {
+    showBtn.addEventListener('click', () => {
+      showBtn.style.display = 'none';
+      document.getElementById('addUnitForm').style.display = '';
+      document.getElementById('newUnitId').focus();
+    });
+  }
+
+  const addBtn = document.getElementById('addUnitBtn');
+  if (addBtn) {
+    addBtn.addEventListener('click', () => handleAddUnit(container, allMaintenance, allCondition));
+  }
+
+  // Allow Enter key to submit
+  const unitInput = document.getElementById('newUnitId');
+  if (unitInput) {
+    unitInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleAddUnit(container, allMaintenance, allCondition);
+    });
+  }
+}
+
+async function handleAddUnit(container, allMaintenance, allCondition) {
+  const idInput = document.getElementById('newUnitId');
+  const typeSelect = document.getElementById('newUnitType');
+  const errEl = document.getElementById('addUnitError');
+  const addBtn = document.getElementById('addUnitBtn');
+
+  const unitId = (idInput.value || '').trim();
+  if (!unitId) {
+    errEl.textContent = 'Unit ID is required.';
+    errEl.style.display = '';
+    idInput.focus();
+    return;
+  }
+
+  // Check for duplicate
+  if (state.fleet.units.some(u => u.UnitId === unitId)) {
+    errEl.textContent = `Unit "${unitId}" already exists.`;
+    errEl.style.display = '';
+    idInput.focus();
+    return;
+  }
+
+  errEl.style.display = 'none';
+  addBtn.disabled = true;
+  addBtn.textContent = 'Adding...';
+
+  const row = { UnitId: unitId, Type: typeSelect.value };
+
+  try {
+    const token = await getValidToken();
+    await appendUnit(row, token, state.fleet.unitsPath);
+    state.fleet.units.push(row);
+    // Update hash so future writes have correct baseline
+    const { downloadCSV: dl, parseCSV: ps } = await import('../graph/csv.js');
+    const { hash } = await dl(state.fleet.unitsPath, token);
+    state.fleet.unitsHash = hash;
+    // Update cache
+    setCachedFleet({ units: state.fleet.units, hash }).catch(() => {});
+    // Refresh upload view dropdown
+    refreshUnitSelect();
+    // Re-render dashboard with updated data
+    renderDashboard(container, allMaintenance, allCondition);
+  } catch (err) {
+    errEl.textContent = `Failed to add unit: ${err.message}`;
+    errEl.style.display = '';
+    addBtn.disabled = false;
+    addBtn.textContent = 'Add Unit';
+  }
 }
 
 // ── Action item builders ─────────────────────────────────────────────────────
