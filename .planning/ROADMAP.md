@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Invoice Workflow** - Complete end-to-end invoice capture, naming, upload, and record (completed 2026-03-17)
 - [x] **Phase 4: Maintenance Tracking** - Per-unit PM schedules, overdue alerts, condition data, unit detail pages (completed 2026-03-17)
 - [x] **Phase 5: Dashboard** - Action-focused main screen showing what needs attention now (completed 2026-03-17)
-- [ ] **Phase 6: Auth Hardening and PWA Reliability** - Silent token refresh, Home Screen install, offline queue
+- [x] **Phase 6: Auth Hardening and PWA Reliability** - Silent token refresh, Home Screen install, offline queue (completed 2026-03-17)
 
 ## Phase Details
 
@@ -109,7 +109,7 @@ Plans:
   1. A user who leaves the app open for over an hour can still upload without being interrupted by an auth error
   2. An upload started while offline is queued and automatically retried when the connection is restored
   3. The app prompts users to install it to the Home Screen on both iOS and Android, and once installed behaves as a standalone app
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 06-01-PLAN.md — Silent token refresh: offline_access scope, refreshAccessToken, getValidToken, wire all API callers
@@ -128,4 +128,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 3. Invoice Workflow | 0/3 | Complete    | 2026-03-17 |
 | 4. Maintenance Tracking | 3/3 | Complete    | 2026-03-17 |
 | 5. Dashboard | 1/1 | Complete    | 2026-03-17 |
-| 6. Auth Hardening and PWA Reliability | 1/3 | In Progress|  |
+| 6. Auth Hardening and PWA Reliability | 1/3 | Complete    | 2026-03-17 |
