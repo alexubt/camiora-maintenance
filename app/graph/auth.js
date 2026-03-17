@@ -13,7 +13,7 @@ export const CONFIG = {
   ONEDRIVE_BASE: 'Fleet Maintenance',
 };
 
-export const SCOPES = 'Files.ReadWrite User.Read';
+export const SCOPES = 'Files.ReadWrite User.Read offline_access';
 export const GRAPH  = 'https://graph.microsoft.com/v1.0';
 
 // ── Auth helpers ───────────────────────────────────────────────────────────────
@@ -78,11 +78,30 @@ export async function exchangeCodeForToken(code) {
   return data;
 }
 
-export function saveToken(token, expiresIn) {
-  sessionStorage.setItem('ms_token', token);
-  sessionStorage.setItem('ms_token_exp', Date.now() + (expiresIn || 3600) * 1000);
-  state.token = token;
-  state.tokenExp = Date.now() + (expiresIn || 3600) * 1000;
+/**
+ * Save token data. Accepts either:
+ * - Full tokenData object: { access_token, expires_in, refresh_token }
+ * - Legacy string: (token, expiresIn) for backward compat
+ */
+export function saveToken(tokenData, expiresIn) {
+  if (typeof tokenData === 'object' && tokenData !== null) {
+    const token = tokenData.access_token;
+    const exp = Date.now() + (tokenData.expires_in || 3600) * 1000;
+    sessionStorage.setItem('ms_token', token);
+    sessionStorage.setItem('ms_token_exp', exp);
+    state.token = token;
+    state.tokenExp = exp;
+    // Store rotating refresh token in sessionStorage only (not in state)
+    if (tokenData.refresh_token) {
+      sessionStorage.setItem('ms_refresh_token', tokenData.refresh_token);
+    }
+  } else {
+    // Legacy: saveToken(tokenString, expiresIn)
+    sessionStorage.setItem('ms_token', tokenData);
+    sessionStorage.setItem('ms_token_exp', Date.now() + (expiresIn || 3600) * 1000);
+    state.token = tokenData;
+    state.tokenExp = Date.now() + (expiresIn || 3600) * 1000;
+  }
 }
 
 export function loadToken() {
@@ -93,11 +112,86 @@ export function loadToken() {
     state.tokenExp = exp;
     return true;
   }
+  // Check if refresh token exists — can attempt silent refresh even if access token expired
+  const hasRefresh = !!sessionStorage.getItem('ms_refresh_token');
+  if (hasRefresh) {
+    return true; // Caller should use getValidToken() which will trigger refresh
+  }
   return false;
 }
 
 export function signOut() {
+  sessionStorage.removeItem('ms_token');
+  sessionStorage.removeItem('ms_token_exp');
+  sessionStorage.removeItem('pkce_verifier');
+  sessionStorage.removeItem('ms_refresh_token');
   sessionStorage.clear();
   state.token = null;
   state.tokenExp = 0;
+}
+
+// ── Token refresh ──────────────────────────────────────────────────────────────
+
+/**
+ * Silently refresh the access token using the stored refresh token.
+ * POSTs grant_type=refresh_token to the Microsoft token endpoint.
+ * On success, calls saveToken with the new token data (rotating refresh token).
+ * @returns {Promise<boolean>} true if refresh succeeded, false otherwise
+ */
+export async function refreshAccessToken() {
+  const refreshToken = sessionStorage.getItem('ms_refresh_token');
+  if (!refreshToken) return false;
+
+  try {
+    const body = new URLSearchParams({
+      client_id:     CONFIG.CLIENT_ID,
+      grant_type:    'refresh_token',
+      refresh_token: refreshToken,
+      scope:         SCOPES,
+    });
+
+    const resp = await fetch(
+      `https://login.microsoftonline.com/${CONFIG.TENANT_ID}/oauth2/v2.0/token`,
+      { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body }
+    );
+
+    if (!resp.ok) {
+      console.error('Token refresh failed', resp.status);
+      return false;
+    }
+
+    const data = await resp.json();
+    saveToken(data);
+    return true;
+  } catch (err) {
+    console.error('Token refresh error:', err);
+    return false;
+  }
+}
+
+/**
+ * Get a valid access token, refreshing silently if within 5 min of expiry.
+ * @returns {Promise<string|null>} access token or null if unavailable
+ */
+export async function getValidToken() {
+  if (!state.token) return null;
+
+  const timeLeft = state.tokenExp - Date.now();
+  const REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+
+  if (timeLeft > REFRESH_THRESHOLD) {
+    return state.token;
+  }
+
+  // Token is expired or about to expire — try refresh
+  const refreshed = await refreshAccessToken();
+  if (refreshed) {
+    return state.token;
+  }
+
+  // Refresh failed — return existing token if not fully expired, else null
+  if (timeLeft > 0) {
+    return state.token;
+  }
+  return null;
 }
