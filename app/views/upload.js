@@ -10,6 +10,7 @@ import { processAndRelease, loadImage } from '../imaging/scanner.js';
 import { runOCR } from '../imaging/ocr.js';
 import { getBaseName, buildFolderPath, getServiceLabel } from '../invoice/naming.js';
 import { appendInvoiceRecord } from '../invoice/record.js';
+import { enqueueUpload } from '../storage/uploadQueue.js';
 
 // Module-level state
 let container = null;
@@ -517,13 +518,50 @@ async function handleSubmit() {
   const cost = (document.getElementById('invoiceCost')?.value || '').trim().replace(/,/g, '');
   const folderPath = buildFolderPath(unitId);
 
+  // ── Offline guard: queue uploads when no connectivity ──────────────────────
+  if (!navigator.onLine) {
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const name = getBaseNameFromForm(i);
+        const ext = files[i].name.split('.').pop();
+        const fileName = `${name}.${ext}`;
+        await enqueueUpload({
+          pdfBlob: files[i],
+          remotePath: `${folderPath}/${fileName}`,
+          folderPath,
+          csvRow: {
+            InvoiceId: Date.now().toString(36) + i,
+            UnitId: unitId,
+            Date: date,
+            Type: svc,
+            Cost: cost,
+            PdfPath: `${folderPath}/${fileName}`,
+          },
+        });
+      }
+      showToast('Offline \u2014 upload queued. Will retry when connected.', 'success');
+    } catch (qErr) {
+      console.error('Queue save failed:', qErr);
+      showToast('Failed to save upload for later', 'error');
+    }
+    // Reset form (same cleanup as success path)
+    files = [];
+    state.scanPages = [];
+    document.getElementById('invoiceCost').value = '';
+    document.getElementById('serviceType').value = '';
+    document.getElementById('serviceDate').value = new Date().toISOString().split('T')[0];
+    state.isUploading = false;
+    updateAll();
+    return;
+  }
+
   btn.innerHTML = `
     <svg class="progress-ring" width="24" height="24" viewBox="0 0 24 24">
       <circle class="progress-track" cx="12" cy="12" r="9"/>
       <circle class="progress-fill" cx="12" cy="12" r="9"
         stroke-dasharray="56.5" stroke-dashoffset="56.5" id="progressArc"/>
     </svg>
-    Uploading…`;
+    Uploading\u2026`;
   btn.disabled = true;
 
   try {
@@ -553,7 +591,7 @@ async function handleSubmit() {
     try {
       const recToken = await getValidToken();
       if (!recToken) {
-        showToast('Session expired — please sign in again', 'error');
+        showToast('Session expired \u2014 please sign in again', 'error');
         return;
       }
       await appendInvoiceRecord(invoiceRow, recToken, state.fleet.invoicesPath);
@@ -581,8 +619,43 @@ async function handleSubmit() {
     }, 2500);
 
   } catch (err) {
+    // Network error (TypeError from fetch) — fall through to queue
+    if (err instanceof TypeError) {
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const name = getBaseNameFromForm(i);
+          const ext = files[i].name.split('.').pop();
+          const fileName = `${name}.${ext}`;
+          await enqueueUpload({
+            pdfBlob: files[i],
+            remotePath: `${folderPath}/${fileName}`,
+            folderPath,
+            csvRow: {
+              InvoiceId: Date.now().toString(36) + i,
+              UnitId: unitId,
+              Date: date,
+              Type: svc,
+              Cost: cost,
+              PdfPath: `${folderPath}/${fileName}`,
+            },
+          });
+        }
+        showToast('Connection lost \u2014 upload queued. Will retry when connected.', 'success');
+        files = [];
+        state.scanPages = [];
+        document.getElementById('invoiceCost').value = '';
+        document.getElementById('serviceType').value = '';
+        document.getElementById('serviceDate').value = new Date().toISOString().split('T')[0];
+        state.isUploading = false;
+        updateAll();
+        return;
+      } catch (qErr) {
+        console.error('Queue save failed:', qErr);
+      }
+    }
+
     console.error(err);
-    showToast('Upload failed — check connection', 'error');
+    showToast('Upload failed \u2014 check connection', 'error');
     btn.innerHTML = `
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"

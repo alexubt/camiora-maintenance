@@ -6,10 +6,44 @@
 import { loadToken, exchangeCodeForToken, saveToken, getValidToken } from './graph/auth.js';
 import { downloadCSV, parseCSV } from './graph/csv.js';
 import { getCachedFleet, setCachedFleet } from './storage/cache.js';
+import { dequeueAll, removeJob } from './storage/uploadQueue.js';
+import { ensureFolder, uploadFile } from './graph/files.js';
+import { appendInvoiceRecord } from './invoice/record.js';
 import { state } from './state.js';
 import { initRouter } from './router.js';
 import { refreshUnitSelect } from './views/upload.js';
 import { initInstallPrompt } from './install.js';
+
+// ── Upload queue drain (retries queued offline uploads) ──────────────────────
+async function drainUploadQueue() {
+  const token = await getValidToken();
+  if (!token) return;
+
+  const jobs = await dequeueAll();
+  if (!jobs.length) return;
+
+  for (const job of jobs) {
+    try {
+      await ensureFolder(job.folderPath);
+      const file = new File([job.pdfBlob], job.remotePath.split('/').pop(), { type: 'application/pdf' });
+      await uploadFile(file, job.remotePath);
+      await appendInvoiceRecord(job.csvRow, token, state.fleet.invoicesPath);
+      await removeJob(job.id);
+
+      // Show toast if DOM is ready
+      const toast = document.getElementById('toast');
+      if (toast) {
+        toast.textContent = `Queued upload completed: ${job.remotePath.split('/').pop()}`;
+        toast.className = 'toast success';
+        requestAnimationFrame(() => toast.classList.add('show'));
+        setTimeout(() => toast.classList.remove('show'), 3500);
+      }
+    } catch (err) {
+      console.warn('Queue drain stopped:', err.message);
+      break; // Stop draining, retry on next online event
+    }
+  }
+}
 
 // ── Fleet data loader (background, non-blocking) ─────────────────────────────
 async function loadFleetData() {
@@ -74,11 +108,16 @@ window.addEventListener('DOMContentLoaded', async () => {
   initRouter(container);
   initInstallPrompt();
 
+  // Register online event listener for queue drain
+  window.addEventListener('online', drainUploadQueue);
+
   // Load fleet data in background if authenticated (do not await — let UI render first)
   if (state.token) {
     loadFleetData().then(() => {
       refreshUnitSelect();
       window.dispatchEvent(new HashChangeEvent('hashchange'));
+      // Drain any leftover queued uploads from previous sessions
+      drainUploadQueue();
     });
   }
 });
