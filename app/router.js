@@ -15,7 +15,7 @@ const ROUTES = {
 
 export function initRouter(container) {
   const go = () => {
-    const hash = window.location.hash || '#dashboard';
+    const hash = window.location.hash || '#upload';
     const key  = hash.split('?')[0];
     const params = Object.fromEntries(
       new URLSearchParams(hash.includes('?') ? hash.split('?')[1] : '')
