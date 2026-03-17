@@ -13,7 +13,7 @@ This roadmap transforms the existing working PWA skeleton (auth, upload, scanner
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - ES module refactor and CSV data layer (unit roster, optimistic locking) (completed 2026-03-17)
-- [ ] **Phase 2: Scanner and OCR** - Production-quality scanner with deskew, B&W, and OCR auto-fill
+- [x] **Phase 2: Scanner and OCR** - Production-quality scanner with deskew, B&W, and OCR auto-fill (completed 2026-03-17)
 - [ ] **Phase 3: Invoice Workflow** - Complete end-to-end invoice capture, naming, upload, and record
 - [ ] **Phase 4: Maintenance Tracking** - Per-unit PM schedules, overdue alerts, condition data, unit detail pages
 - [ ] **Phase 5: Dashboard** - Action-focused main screen showing what needs attention now
@@ -106,7 +106,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/3 | Complete    | 2026-03-17 |
-| 2. Scanner and OCR | 0/3 | Not started | - |
+| 2. Scanner and OCR | 3/3 | Complete | 2026-03-17 |
 | 3. Invoice Workflow | 0/TBD | Not started | - |
 | 4. Maintenance Tracking | 0/TBD | Not started | - |
 | 5. Dashboard | 0/TBD | Not started | - |
