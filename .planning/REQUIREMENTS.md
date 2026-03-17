@@ -84,38 +84,38 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SCAN-01 | — | Pending |
-| SCAN-02 | — | Pending |
-| SCAN-03 | — | Pending |
-| SCAN-04 | — | Pending |
-| OCR-01 | — | Pending |
-| OCR-02 | — | Pending |
-| OCR-03 | — | Pending |
-| INV-01 | — | Pending |
-| INV-02 | — | Pending |
-| INV-03 | — | Pending |
-| INV-04 | — | Pending |
-| INV-05 | — | Pending |
-| INV-06 | — | Pending |
-| FLEET-01 | — | Pending |
-| FLEET-02 | — | Pending |
-| FLEET-03 | — | Pending |
-| FLEET-04 | — | Pending |
-| FLEET-05 | — | Pending |
-| FLEET-06 | — | Pending |
-| FLEET-07 | — | Pending |
-| DASH-01 | — | Pending |
-| DASH-02 | — | Pending |
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| INFRA-04 | — | Pending |
+| INFRA-04 | Phase 1 | Pending |
+| FLEET-01 | Phase 1 | Pending |
+| FLEET-07 | Phase 1 | Pending |
+| SCAN-01 | Phase 2 | Pending |
+| SCAN-02 | Phase 2 | Pending |
+| SCAN-03 | Phase 2 | Pending |
+| SCAN-04 | Phase 2 | Pending |
+| OCR-01 | Phase 2 | Pending |
+| OCR-02 | Phase 2 | Pending |
+| OCR-03 | Phase 2 | Pending |
+| INV-01 | Phase 3 | Pending |
+| INV-02 | Phase 3 | Pending |
+| INV-03 | Phase 3 | Pending |
+| INV-04 | Phase 3 | Pending |
+| INV-05 | Phase 3 | Pending |
+| INV-06 | Phase 3 | Pending |
+| FLEET-02 | Phase 4 | Pending |
+| FLEET-03 | Phase 4 | Pending |
+| FLEET-04 | Phase 4 | Pending |
+| FLEET-05 | Phase 4 | Pending |
+| FLEET-06 | Phase 4 | Pending |
+| DASH-01 | Phase 5 | Pending |
+| DASH-02 | Phase 5 | Pending |
+| INFRA-01 | Phase 6 | Pending |
+| INFRA-02 | Phase 6 | Pending |
+| INFRA-03 | Phase 6 | Pending |
 
 **Coverage:**
 - v1 requirements: 26 total
-- Mapped to phases: 0
-- Unmapped: 26 ⚠️
+- Mapped to phases: 26
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-16*
-*Last updated: 2026-03-16 after initial definition*
+*Last updated: 2026-03-16 after roadmap creation — all requirements mapped*
