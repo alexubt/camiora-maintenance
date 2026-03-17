@@ -4,18 +4,23 @@
  */
 
 import { render as renderUpload } from './views/upload.js';
+import { render as renderUnitDetail } from './views/unit-detail.js';
 
 const ROUTES = {
   '#upload': renderUpload,
+  '#unit':   renderUnitDetail,
 };
 
 export function initRouter(container) {
   const go = () => {
     const hash = window.location.hash || '#upload';
     const key  = hash.split('?')[0];
+    const params = Object.fromEntries(
+      new URLSearchParams(hash.includes('?') ? hash.split('?')[1] : '')
+    );
     const fn   = ROUTES[key] || renderUpload;
     container.innerHTML = '';
-    fn(container);
+    fn(container, params);
   };
   window.addEventListener('hashchange', go);
   go(); // initial render
