@@ -72,8 +72,38 @@ export function render(container, params = {}) {
 
   // Loading skeleton
   container.innerHTML = `
+    <div class="header">
+      <div class="logo-mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M3 17L8 7H16L21 17" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="5.5" cy="18.5" r="2" fill="white"/>
+          <circle cx="18.5" cy="18.5" r="2" fill="white"/>
+        </svg>
+      </div>
+      <div style="flex:1;">
+        <div class="logo-text">Camiora</div>
+        <div class="logo-sub">Dashboard</div>
+      </div>
+    </div>
+    <nav class="section-nav">
+      <a href="#upload" class="section-nav-tab">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Upload
+      </a>
+      <a href="#dashboard" class="section-nav-tab active">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+          <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+          <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+          <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        Dashboard
+      </a>
+    </nav>
     <div style="padding:16px;">
-      <h2 style="margin:0 0 16px;">Dashboard</h2>
       <div style="color:var(--text-2);padding:40px 0;text-align:center;">Loading fleet data...</div>
     </div>`;
 
@@ -222,9 +252,40 @@ function renderDashboard(container, allMaintenance, allCondition) {
     </div>`;
 
   container.innerHTML = `
-    <div style="padding:16px;padding-bottom:80px;">
-      <h2 style="margin:0 0 16px;">Dashboard</h2>
+    <div class="header">
+      <div class="logo-mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M3 17L8 7H16L21 17" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="5.5" cy="18.5" r="2" fill="white"/>
+          <circle cx="18.5" cy="18.5" r="2" fill="white"/>
+        </svg>
+      </div>
+      <div style="flex:1;">
+        <div class="logo-text">Camiora</div>
+        <div class="logo-sub">Dashboard</div>
+      </div>
+    </div>
 
+    <nav class="section-nav">
+      <a href="#upload" class="section-nav-tab">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Upload
+      </a>
+      <a href="#dashboard" class="section-nav-tab active">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+          <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+          <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+          <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+        </svg>
+        Dashboard
+      </a>
+    </nav>
+
+    <div style="padding:16px;padding-bottom:80px;">
       ${actionHtml}
 
       <div style="margin-top:20px;">
