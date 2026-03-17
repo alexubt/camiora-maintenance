@@ -47,7 +47,12 @@ Plans:
   3. Capturing and processing multiple invoices in sequence does not crash the app on an older iPhone
   4. OCR extracts text from the scanned image and pre-populates the unit, date, and type fields on the invoice form
   5. User can review and correct any OCR-detected field before submitting the upload
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Extract scanner module, fix black corners, add deskew, upgrade jsPDF, unit tests
+- [ ] 02-02-PLAN.md — Canvas memory fix (blob-based), OCR module with lazy Tesseract.js, form auto-fill
+- [ ] 02-03-PLAN.md — Browser verification checkpoint (human-verify scanner + OCR on mobile)
 
 ### Phase 3: Invoice Workflow
 **Goal**: A user can snap, categorize, and file an invoice to OneDrive in under two minutes with a complete audit record
@@ -96,12 +101,12 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/3 | Complete    | 2026-03-17 |
-| 2. Scanner and OCR | 0/TBD | Not started | - |
+| 2. Scanner and OCR | 0/3 | Not started | - |
 | 3. Invoice Workflow | 0/TBD | Not started | - |
 | 4. Maintenance Tracking | 0/TBD | Not started | - |
 | 5. Dashboard | 0/TBD | Not started | - |
