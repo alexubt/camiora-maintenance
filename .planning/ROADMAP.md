@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - ES module refactor and CSV data layer (unit roster, optimistic locking) (completed 2026-03-17)
 - [x] **Phase 2: Scanner and OCR** - Production-quality scanner with deskew, B&W, and OCR auto-fill (completed 2026-03-17)
 - [x] **Phase 3: Invoice Workflow** - Complete end-to-end invoice capture, naming, upload, and record (completed 2026-03-17)
-- [ ] **Phase 4: Maintenance Tracking** - Per-unit PM schedules, overdue alerts, condition data, unit detail pages
+- [x] **Phase 4: Maintenance Tracking** - Per-unit PM schedules, overdue alerts, condition data, unit detail pages (completed 2026-03-17)
 - [ ] **Phase 5: Dashboard** - Action-focused main screen showing what needs attention now
 - [ ] **Phase 6: Auth Hardening and PWA Reliability** - Silent token refresh, Home Screen install, offline queue
 
@@ -81,12 +81,12 @@ Plans:
   3. Overdue maintenance items are visually flagged on the unit detail page
   4. Unit condition data (mileage/hours, DOT inspection status) can be viewed and updated per unit
   5. A user can navigate to any unit's detail page and see its full history, condition, and upcoming PM schedule in one view
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 04-01-PLAN.md — TDD: Pure schedule functions (getDueDate, getDueMiles, isOverdue) with tests
-- [ ] 04-02-PLAN.md — Unit detail view: router extension, state extension, invoice history, PM schedule, condition tracking
-- [ ] 04-03-PLAN.md — Browser verification checkpoint (human-verify unit detail page)
+- [x] 04-01-PLAN.md — TDD: Pure schedule functions (getDueDate, getDueMiles, isOverdue) with tests
+- [x] 04-02-PLAN.md — Unit detail view: router extension, state extension, invoice history, PM schedule, condition tracking
+- [x] 04-03-PLAN.md — Browser verification checkpoint (human-verify unit detail page)
 
 ### Phase 5: Dashboard
 **Goal**: Users open the app and immediately see what needs attention — no navigation required
@@ -118,6 +118,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 1. Foundation | 2/3 | Complete    | 2026-03-17 |
 | 2. Scanner and OCR | 3/3 | Complete    | 2026-03-17 |
 | 3. Invoice Workflow | 0/3 | Complete    | 2026-03-17 |
-| 4. Maintenance Tracking | 1/3 | In Progress|  |
+| 4. Maintenance Tracking | 3/3 | Complete    | 2026-03-17 |
 | 5. Dashboard | 0/TBD | Not started | - |
 | 6. Auth Hardening and PWA Reliability | 0/TBD | Not started | - |
