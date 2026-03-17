@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Scanner and OCR** - Production-quality scanner with deskew, B&W, and OCR auto-fill (completed 2026-03-17)
 - [x] **Phase 3: Invoice Workflow** - Complete end-to-end invoice capture, naming, upload, and record (completed 2026-03-17)
 - [x] **Phase 4: Maintenance Tracking** - Per-unit PM schedules, overdue alerts, condition data, unit detail pages (completed 2026-03-17)
-- [ ] **Phase 5: Dashboard** - Action-focused main screen showing what needs attention now
+- [x] **Phase 5: Dashboard** - Action-focused main screen showing what needs attention now (completed 2026-03-17)
 - [ ] **Phase 6: Auth Hardening and PWA Reliability** - Silent token refresh, Home Screen install, offline queue
 
 ## Phase Details
@@ -99,7 +99,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 05-01-PLAN.md — Dashboard view with overdue/due-soon alerts and unit status grid, wired as default route
+- [x] 05-01-PLAN.md — Dashboard view with overdue/due-soon alerts and unit status grid, wired as default route
 
 ### Phase 6: Auth Hardening and PWA Reliability
 **Goal**: The app works reliably in the field — no mid-upload auth failures, no data loss on reconnect, and installs cleanly on phones
@@ -122,5 +122,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Scanner and OCR | 3/3 | Complete    | 2026-03-17 |
 | 3. Invoice Workflow | 0/3 | Complete    | 2026-03-17 |
 | 4. Maintenance Tracking | 3/3 | Complete    | 2026-03-17 |
-| 5. Dashboard | 0/1 | Not started | - |
+| 5. Dashboard | 1/1 | Complete | 2026-03-17 |
 | 6. Auth Hardening and PWA Reliability | 0/TBD | Not started | - |

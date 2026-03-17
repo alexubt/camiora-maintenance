@@ -39,8 +39,8 @@
 
 ### Dashboard
 
-- [ ] **DASH-01**: Action-focused main screen showing overdue and upcoming maintenance
-- [ ] **DASH-02**: Unit list with status at a glance
+- [x] **DASH-01**: Action-focused main screen showing overdue and upcoming maintenance
+- [x] **DASH-02**: Unit list with status at a glance
 
 ### Infrastructure
 
@@ -105,8 +105,8 @@
 | FLEET-04 | Phase 4 | Complete |
 | FLEET-05 | Phase 4 | Complete |
 | FLEET-06 | Phase 4 | Complete |
-| DASH-01 | Phase 5 | Pending |
-| DASH-02 | Phase 5 | Pending |
+| DASH-01 | Phase 5 | Complete |
+| DASH-02 | Phase 5 | Complete |
 | INFRA-01 | Phase 6 | Pending |
 | INFRA-02 | Phase 6 | Pending |
 | INFRA-03 | Phase 6 | Pending |
