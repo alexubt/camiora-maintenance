@@ -81,7 +81,7 @@ Plans:
   3. Overdue maintenance items are visually flagged on the unit detail page
   4. Unit condition data (mileage/hours, DOT inspection status) can be viewed and updated per unit
   5. A user can navigate to any unit's detail page and see its full history, condition, and upcoming PM schedule in one view
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 04-01-PLAN.md — TDD: Pure schedule functions (getDueDate, getDueMiles, isOverdue) with tests
@@ -118,6 +118,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 1. Foundation | 2/3 | Complete    | 2026-03-17 |
 | 2. Scanner and OCR | 3/3 | Complete    | 2026-03-17 |
 | 3. Invoice Workflow | 0/3 | Complete    | 2026-03-17 |
-| 4. Maintenance Tracking | 0/3 | Not started | - |
+| 4. Maintenance Tracking | 1/3 | In Progress|  |
 | 5. Dashboard | 0/TBD | Not started | - |
 | 6. Auth Hardening and PWA Reliability | 0/TBD | Not started | - |

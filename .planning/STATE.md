@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-03-17T05:07:17.461Z"
-last_activity: 2026-03-17 — Completed 03-03 Invoice workflow verification
+status: in_progress
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-03-17T05:21:50Z"
+last_activity: 2026-03-17 — Completed 04-01 Schedule calculation functions
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  total_plans: 12
+  completed_plans: 10
+  percent: 83
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Scan an invoice on a phone, have it auto-named and filed in the right OneDrive folder — saves hundreds of hours of manual data entry
-**Current focus:** Phase 3 complete — Invoice Workflow verified end-to-end
+**Current focus:** Phase 4 in progress — Maintenance Tracking
 
 ## Current Position
 
-Phase: 3 of 6 (Invoice Workflow) -- COMPLETE
-Plan: 3 of 3 in current phase -- COMPLETE
-Status: Phase Complete
-Last activity: 2026-03-17 — Completed 03-03 Invoice workflow verification
+Phase: 4 of 6 (Maintenance Tracking)
+Plan: 1 of 3 in current phase -- COMPLETE
+Status: In Progress
+Last activity: 2026-03-17 — Completed 04-01 Schedule calculation functions
 
-Progress: [██████████] 100%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [██████████] 100%
 | Phase 03 P01 | 3min | 2 tasks | 4 files |
 | Phase 03 P02 | 4min | 3 tasks | 4 files |
 | Phase 03 P03 | 1min | 1 tasks | 0 files |
+| Phase 04 P01 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,9 @@ Recent decisions affecting current work:
 - [Phase 03]: Mileage field replaced with cost field (mileage not in invoice spec)
 - [Phase 03]: Invoice record append is non-fatal -- upload succeeds even if CSV write fails
 - [Phase 03]: Auto-approved browser verification checkpoint -- all Phase 3 invoice workflow requirements confirmed
+- 04-01: String comparison for YYYY-MM-DD date ordering (no Date object needed for comparison)
+- 04-01: isOverdue returns false on equal-to-due-date (overdue means past, not at)
+- 04-01: currentMiles >= dueMiles triggers overdue (at-limit counts as due)
 
 ### Pending Todos
 
@@ -100,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T05:02:06.316Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-03-17T05:21:50Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
