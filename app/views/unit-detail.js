@@ -358,6 +358,12 @@ function renderUnitPage(container, unitId, data) {
         </div>
       </div>
 
+      <!-- Tire Monitor Section -->
+      <div style="margin-bottom:20px;">
+        <h3 style="margin:0 0 8px;font-size:16px;">Tire Monitor</h3>
+        ${renderTireMonitor(data.maintenance, unitId)}
+      </div>
+
       <!-- PM Schedule Section -->
       <div style="margin-bottom:20px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -518,6 +524,27 @@ function renderUnitPage(container, unitId, data) {
     if (action === 'save-notable') {
       handleSaveNotable(container, unitId);
     }
+
+    if (action === 'update-tire') {
+      const pos = e.target.closest('[data-tire-pos]')?.dataset?.tirePos;
+      if (pos) {
+        const picker = container.querySelector('#tirePicker-' + pos);
+        if (picker) picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+      }
+    }
+
+    if (action === 'cancel-tire-date') {
+      const pos = e.target.closest('[data-tire-pos]')?.dataset?.tirePos;
+      if (pos) {
+        const picker = container.querySelector('#tirePicker-' + pos);
+        if (picker) picker.style.display = 'none';
+      }
+    }
+
+    if (action === 'save-tire-date') {
+      const pos = e.target.closest('[data-tire-pos]')?.dataset?.tirePos;
+      if (pos) handleSaveTireDate(container, unitId, pos);
+    }
   });
 }
 
@@ -582,6 +609,67 @@ async function handleMarkDone(container, unitId, maintId, currentMiles) {
   }
 }
 
+// ── Tire Monitor helpers ──────────────────────────────────────────────────────
+
+function renderTireMonitor(maintenance, unitId) {
+  const groups = [
+    { label: 'Steer', positions: TIRE_POSITIONS.filter(p => p.key.startsWith('steer')) },
+    { label: 'Drive Outer', positions: TIRE_POSITIONS.filter(p => p.key.startsWith('drive-outer')) },
+    { label: 'Drive Inner', positions: TIRE_POSITIONS.filter(p => p.key.startsWith('drive-inner')) },
+    { label: 'Trailer', positions: TIRE_POSITIONS.filter(p => p.key.startsWith('trailer')) },
+  ];
+
+  return groups.map(g => `
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">${escapeHtml(g.label)}</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
+        ${g.positions.map(pos => {
+          const rec = maintenance.find(r => r.Type === 'tire-' + pos.key);
+          const dateStr = rec?.LastDoneDate || null;
+          return `<div style="background:var(--bg-2, #f8f9fa);border-radius:12px;padding:12px 14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <strong style="font-size:13px;">${escapeHtml(pos.label)}</strong>
+              <button data-action="update-tire" data-tire-pos="${pos.key}" style="background:none;border:1px solid #999;color:#666;padding:2px 8px;border-radius:6px;font-size:11px;cursor:pointer;">Update</button>
+            </div>
+            <div style="font-size:12px;color:var(--text-2);margin-top:4px;">${dateStr ? 'Replaced: ' + escapeHtml(dateStr) : 'Not recorded'}</div>
+            <div id="tirePicker-${pos.key}" style="display:none;margin-top:8px;">
+              <input type="date" class="tire-date-input" data-tire-pos="${pos.key}" value="${new Date().toISOString().split('T')[0]}" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">
+              <div style="margin-top:6px;display:flex;gap:6px;">
+                <button data-action="save-tire-date" data-tire-pos="${pos.key}" style="background:var(--green-dark, #28a745);color:#fff;border:none;padding:4px 12px;border-radius:8px;font-size:12px;cursor:pointer;">Save</button>
+                <button data-action="cancel-tire-date" data-tire-pos="${pos.key}" style="background:none;border:none;color:var(--text-2);padding:4px 8px;font-size:12px;cursor:pointer;">Cancel</button>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function updateTireDate(tireType, dateStr, unitId, token, maintenancePath, csvOps = defaultCsvOps) {
+  const { text, hash } = await csvOps.downloadCSV(maintenancePath, token);
+  const rows = csvOps.parseCSV(text);
+
+  const idx = rows.findIndex(r => r.UnitId === unitId && r.Type === tireType);
+  if (idx >= 0) {
+    rows[idx].LastDoneDate = dateStr;
+  } else {
+    rows.push({
+      MaintId: Date.now().toString(36),
+      UnitId: unitId,
+      Type: tireType,
+      IntervalDays: '',
+      IntervalMiles: '',
+      LastDoneDate: dateStr,
+      LastDoneMiles: '',
+      Notes: '',
+    });
+  }
+
+  const newText = csvOps.serializeCSV(MAINTENANCE_HEADERS, rows);
+  return await csvOps.writeCSVWithLock(maintenancePath, hash, newText, token);
+}
+
 async function handleMilestoneDone(container, unitId, milestoneType, currentMiles, data) {
   const today = new Date().toISOString().split('T')[0];
   const milestone = MILESTONES.find(m => m.type === milestoneType);
@@ -608,6 +696,21 @@ async function handleMilestoneDone(container, unitId, milestoneType, currentMile
   } catch (err) {
     console.error('Milestone done failed:', err);
     showToast(container, 'Update failed: ' + err.message, 'error');
+  }
+}
+
+async function handleSaveTireDate(container, unitId, posKey) {
+  const input = container.querySelector('.tire-date-input[data-tire-pos="' + posKey + '"]');
+  const dateStr = input?.value || '';
+  if (!dateStr) return;
+
+  try {
+    await updateTireDate('tire-' + posKey, dateStr, unitId, state.token, state.fleet.maintenancePath);
+    showToast(container, 'Tire date updated', 'success');
+    render(container, { id: unitId });
+  } catch (err) {
+    console.error('Tire date save failed:', err);
+    showToast(container, 'Save failed: ' + err.message, 'error');
   }
 }
 
