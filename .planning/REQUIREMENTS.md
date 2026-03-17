@@ -47,7 +47,7 @@
 - [ ] **INFRA-01**: Home Screen install prompt for iOS/Android
 - [ ] **INFRA-02**: Silent token refresh (no re-login interruption after 1 hour)
 - [ ] **INFRA-03**: Offline queue for uploads, sync when reconnected
-- [ ] **INFRA-04**: ES module refactor of existing monolith `app.js`
+- [x] **INFRA-04**: ES module refactor of existing monolith `app.js`
 
 ## v2 Requirements
 
@@ -84,7 +84,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-04 | Phase 1 | Pending |
+| INFRA-04 | Phase 1 | Complete |
 | FLEET-01 | Phase 1 | Complete |
 | FLEET-07 | Phase 1 | Complete |
 | SCAN-01 | Phase 2 | Pending |

@@ -30,11 +30,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Unit roster (trucks and trailers) is fetched from OneDrive CSV and available to the invoice form on page load
   3. A write to the fleet CSV succeeds only when the file hash matches the version last read (optimistic lock in place)
   4. The hash-based router switches between `#upload` and other views without page reload
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 01-01-PLAN.md — CSV data layer with tests (parseCSV, hashText, optimistic lock) + state/cache modules
-- [ ] 01-02-PLAN.md — ES module refactor: extract auth, files, upload view, create router and main.js
+- [x] 01-02-PLAN.md — ES module refactor: extract auth, files, upload view, create router and main.js
 - [ ] 01-03-PLAN.md — Browser verification checkpoint (human-verify full app works)
 
 ### Phase 2: Scanner and OCR
@@ -100,7 +100,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 1/3 | In Progress|  |
+| 1. Foundation | 2/3 | In Progress |  |
 | 2. Scanner and OCR | 0/TBD | Not started | - |
 | 3. Invoice Workflow | 0/TBD | Not started | - |
 | 4. Maintenance Tracking | 0/TBD | Not started | - |

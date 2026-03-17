@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md (CSV data layer)
-last_updated: "2026-03-17T03:22:00.000Z"
-last_activity: 2026-03-17 — Completed 01-01 CSV data layer
+stopped_at: Completed 01-02-PLAN.md (ES module extraction)
+last_updated: "2026-03-17T03:31:33.000Z"
+last_activity: 2026-03-17 — Completed 01-02 ES module extraction
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 67
 ---
 
 # Project State
@@ -26,24 +26,24 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 1 of 6 (Foundation)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: Executing
-Last activity: 2026-03-17 — Completed 01-01 CSV data layer
+Last activity: 2026-03-17 — Completed 01-02 ES module extraction
 
-Progress: [███░░░░░░░] 33%
+Progress: [██████░░░░] 67%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 3min
-- Total execution time: 0.05 hours
+- Total plans completed: 2
+- Average duration: 4.5min
+- Total execution time: 0.15 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-foundation | 1/3 | 3min | 3min |
+| 01-foundation | 2/3 | 9min | 4.5min |
 
 **Recent Trend:**
 - Last 5 plans: —
@@ -64,6 +64,10 @@ Recent decisions affecting current work:
 - Init: Tesseract.js was removed (commit ae67a4c) — OCR-01/02/03 require re-introduction as v1 requirements
 - 01-01: Used Node.js built-in test runner (node:test) for zero-dependency testing
 - 01-01: hashText is pure (no normalization); downloadCSV normalizes CRLF before hashing
+- 01-02: Inline onclick handlers replaced with addEventListener + data-action attributes
+- 01-02: Event delegation for dynamic scan page and file list remove buttons
+- 01-02: signOut() no longer calls renderAuth -- caller handles re-rendering
+- 01-02: Fleet data loaded in background without await (UI renders first)
 
 ### Pending Todos
 
@@ -78,5 +82,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-17
-Stopped at: Completed 01-01-PLAN.md (CSV data layer)
+Stopped at: Completed 01-02-PLAN.md (ES module extraction)
 Resume file: None
