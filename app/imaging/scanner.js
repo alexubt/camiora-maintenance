@@ -42,7 +42,7 @@ export function sobelEdges(gray, w, h) {
   return edges;
 }
 
-// ── Find document corners ─────────────────────────────────────────────────────
+// ── Find document corners (legacy margin-scan method) ─────────────────────────
 export function findDocumentCorners(edges, w, h) {
   const threshold = 50;
   const margin = Math.round(Math.min(w, h) * 0.02);
@@ -114,6 +114,236 @@ export function findDocumentCorners(edges, w, h) {
   if (quadArea < w * h * 0.15) return null;
 
   return { tl, tr, br, bl };
+}
+
+// ── Robust contour-based document detection (handles rotated documents) ───────
+
+/** Downsample a grayscale/edge array using area averaging */
+export function downsampleEdges(src, srcW, srcH, dstW, dstH) {
+  const dst = new Uint8Array(dstW * dstH);
+  const xRatio = srcW / dstW;
+  const yRatio = srcH / dstH;
+  for (let dy = 0; dy < dstH; dy++) {
+    for (let dx = 0; dx < dstW; dx++) {
+      const sx = Math.min(srcW - 1, Math.round(dx * xRatio));
+      const sy = Math.min(srcH - 1, Math.round(dy * yRatio));
+      dst[dy * dstW + dx] = src[sy * srcW + sx];
+    }
+  }
+  return dst;
+}
+
+/** Morphological dilation on a binary image (1/0 values) */
+export function morphDilate(binary, w, h, radius) {
+  const out = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (binary[y * w + x]) {
+        for (let ky = -radius; ky <= radius; ky++) {
+          for (let kx = -radius; kx <= radius; kx++) {
+            const nx = x + kx, ny = y + ky;
+            if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+              out[ny * w + nx] = 1;
+            }
+          }
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/** Flood-fill from image border to find background. Returns Uint8Array (1=background). */
+export function floodFillBorder(binary, w, h) {
+  const bg = new Uint8Array(w * h);
+  const queue = [];
+
+  // Seed from border pixels that are not edge
+  for (let x = 0; x < w; x++) {
+    if (!binary[x]) { bg[x] = 1; queue.push(x); }
+    const bi = (h - 1) * w + x;
+    if (!binary[bi]) { bg[bi] = 1; queue.push(bi); }
+  }
+  for (let y = 1; y < h - 1; y++) {
+    if (!binary[y * w]) { bg[y * w] = 1; queue.push(y * w); }
+    const ri = y * w + w - 1;
+    if (!binary[ri]) { bg[ri] = 1; queue.push(ri); }
+  }
+
+  let qi = 0;
+  while (qi < queue.length) {
+    const idx = queue[qi++];
+    const x = idx % w, y = (idx - x) / w;
+    const neighbors = [
+      x > 0     ? idx - 1 : -1,
+      x < w - 1 ? idx + 1 : -1,
+      y > 0     ? idx - w : -1,
+      y < h - 1 ? idx + w : -1,
+    ];
+    for (const ni of neighbors) {
+      if (ni >= 0 && !bg[ni] && !binary[ni]) {
+        bg[ni] = 1;
+        queue.push(ni);
+      }
+    }
+  }
+
+  return bg;
+}
+
+/** Graham scan convex hull. Returns points in counter-clockwise order. */
+export function grahamScan(points) {
+  if (points.length < 3) return points.slice();
+
+  // Find the bottom-most (then left-most) point
+  let pivot = 0;
+  for (let i = 1; i < points.length; i++) {
+    if (points[i].y > points[pivot].y ||
+       (points[i].y === points[pivot].y && points[i].x < points[pivot].x)) {
+      pivot = i;
+    }
+  }
+
+  const p0 = points[pivot];
+
+  // Sort by polar angle from pivot
+  const sorted = points.filter((_, i) => i !== pivot).sort((a, b) => {
+    const angleA = Math.atan2(a.y - p0.y, a.x - p0.x);
+    const angleB = Math.atan2(b.y - p0.y, b.x - p0.x);
+    if (Math.abs(angleA - angleB) > 1e-10) return angleA - angleB;
+    // Same angle: closer point first
+    const dA = (a.x - p0.x) ** 2 + (a.y - p0.y) ** 2;
+    const dB = (b.x - p0.x) ** 2 + (b.y - p0.y) ** 2;
+    return dA - dB;
+  });
+
+  const stack = [p0];
+  for (const pt of sorted) {
+    while (stack.length > 1) {
+      const a = stack[stack.length - 2];
+      const b = stack[stack.length - 1];
+      // Cross product: (b-a) x (pt-a)
+      const cross = (b.x - a.x) * (pt.y - a.y) - (b.y - a.y) * (pt.x - a.x);
+      if (cross > 0) break; // left turn — keep
+      stack.pop();
+    }
+    stack.push(pt);
+  }
+
+  return stack;
+}
+
+/** Shoelace formula for polygon area */
+export function shoelaceArea(pts) {
+  let area = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const j = (i + 1) % pts.length;
+    area += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+  }
+  return Math.abs(area) / 2;
+}
+
+/** Extract 4 corners (TL, TR, BR, BL) from a convex hull */
+export function hullToQuad(hull) {
+  if (hull.length < 4) return null;
+
+  // TL = min(x+y), BR = max(x+y), TR = max(x-y), BL = min(x-y)
+  // Tie-breaking ensures distinct corners even for 45° rotated rectangles.
+  let tl = hull[0], tr = hull[0], br = hull[0], bl = hull[0];
+  let minSum = Infinity, maxSum = -Infinity;
+  let maxDiff = -Infinity, minDiff = Infinity;
+
+  for (const p of hull) {
+    const sum = p.x + p.y;
+    const diff = p.x - p.y;
+    // TL: min sum, tie-break by smaller y (higher up)
+    if (sum < minSum || (sum === minSum && p.y < tl.y)) { minSum = sum; tl = p; }
+    // BR: max sum, tie-break by larger y (lower down)
+    if (sum > maxSum || (sum === maxSum && p.y > br.y)) { maxSum = sum; br = p; }
+    // TR: max diff (x-y), tie-break by larger x (more right)
+    if (diff > maxDiff || (diff === maxDiff && p.x > tr.x)) { maxDiff = diff; tr = p; }
+    // BL: min diff (x-y), tie-break by smaller x (more left)
+    if (diff < minDiff || (diff === minDiff && p.x < bl.x)) { minDiff = diff; bl = p; }
+  }
+
+  // Validate that we got 4 distinct corners
+  const pts = [tl, tr, br, bl];
+  for (let i = 0; i < 4; i++) {
+    for (let j = i + 1; j < 4; j++) {
+      if (pts[i].x === pts[j].x && pts[i].y === pts[j].y) return null;
+    }
+  }
+
+  return { tl, tr, br, bl };
+}
+
+/**
+ * Robust document quad detection using contour analysis.
+ * Works for documents at any rotation angle (0-360°).
+ * Falls back to legacy margin-scan method if contour detection fails.
+ */
+export function findDocumentQuadRobust(edges, w, h) {
+  // Downsample for performance (max 400px)
+  const maxDim = 400;
+  const scale = Math.min(1, maxDim / Math.max(w, h));
+  const sw = Math.round(w * scale);
+  const sh = Math.round(h * scale);
+  const small = downsampleEdges(edges, w, h, sw, sh);
+
+  // Binary threshold
+  const binary = new Uint8Array(sw * sh);
+  for (let i = 0; i < sw * sh; i++) binary[i] = small[i] > 25 ? 1 : 0;
+
+  // Dilate to close edge gaps (crucial for document boundary continuity)
+  const dilated = morphDilate(binary, sw, sh, 4);
+
+  // Flood fill from border to find background
+  const bg = floodFillBorder(dilated, sw, sh);
+
+  // Interior = everything not reached by background flood fill
+  let interiorCount = 0;
+  for (let i = 0; i < sw * sh; i++) {
+    if (!bg[i]) interiorCount++;
+  }
+
+  // Document should occupy at least 10% of image
+  if (interiorCount < sw * sh * 0.10) return null;
+
+  // Find boundary points of interior region
+  const boundary = [];
+  for (let y = 1; y < sh - 1; y++) {
+    for (let x = 1; x < sw - 1; x++) {
+      if (bg[y * sw + x]) continue; // skip background
+      // On boundary if any 4-neighbor is background
+      if (bg[(y - 1) * sw + x] || bg[(y + 1) * sw + x] ||
+          bg[y * sw + x - 1] || bg[y * sw + x + 1]) {
+        boundary.push({ x, y });
+      }
+    }
+  }
+
+  if (boundary.length < 4) return null;
+
+  // Convex hull of boundary points
+  const hull = grahamScan(boundary);
+  if (hull.length < 4) return null;
+
+  // Extract 4 corners from hull
+  const quad = hullToQuad(hull);
+  if (!quad) return null;
+
+  // Validate quad area (at least 10% of image)
+  const quadArea = shoelaceArea([quad.tl, quad.tr, quad.br, quad.bl]);
+  if (quadArea < sw * sh * 0.10) return null;
+
+  // Scale corners back to original resolution
+  const inv = 1 / scale;
+  return {
+    tl: { x: quad.tl.x * inv, y: quad.tl.y * inv },
+    tr: { x: quad.tr.x * inv, y: quad.tr.y * inv },
+    br: { x: quad.br.x * inv, y: quad.br.y * inv },
+    bl: { x: quad.bl.x * inv, y: quad.bl.y * inv },
+  };
 }
 
 // ── Perspective warp (with coordinate clamping fix) ───────────────────────────
@@ -273,21 +503,25 @@ export function loadImage(file) {
 // Returns { scannedBlob, ocrBlob } — scannedBlob is B&W for PDF, ocrBlob is
 // grayscale (no threshold) for OCR text extraction.
 export async function processAndRelease(img) {
-  const canvas = processImage(img);
+  const { scanned, corrected } = processImage(img);
   const scannedBlob = await new Promise(resolve =>
-    canvas.toBlob(resolve, 'image/jpeg', 0.85)
+    scanned.toBlob(resolve, 'image/jpeg', 0.85)
   );
-  canvas.width = 0;   // release GPU memory
-  canvas.height = 0;
+  scanned.width = 0;   // release GPU memory
+  scanned.height = 0;
 
-  // Create a lighter version for OCR — just grayscale, no B&W threshold
+  // OCR version: use the perspective-corrected image (not raw) with contrast boost.
+  // This ensures rotated documents have upright text for Tesseract.
   const ocrCanvas = document.createElement('canvas');
-  const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
-  ocrCanvas.width = Math.round(img.width * scale);
-  ocrCanvas.height = Math.round(img.height * scale);
+  const scale = Math.min(1, 1600 / Math.max(corrected.width, corrected.height));
+  ocrCanvas.width = Math.round(corrected.width * scale);
+  ocrCanvas.height = Math.round(corrected.height * scale);
   const ctx = ocrCanvas.getContext('2d');
   ctx.filter = 'grayscale(1) contrast(1.3)';
-  ctx.drawImage(img, 0, 0, ocrCanvas.width, ocrCanvas.height);
+  ctx.drawImage(corrected, 0, 0, ocrCanvas.width, ocrCanvas.height);
+  corrected.width = 0;
+  corrected.height = 0;
+
   const ocrBlob = await new Promise(resolve =>
     ocrCanvas.toBlob(resolve, 'image/jpeg', 0.85)
   );
@@ -298,6 +532,7 @@ export async function processAndRelease(img) {
 }
 
 // ── Main processing pipeline ──────────────────────────────────────────────────
+// Returns { scanned: canvas (B&W), corrected: canvas (grayscale, no threshold) }
 export function processImage(img) {
   const work = document.createElement('canvas');
   const wCtx = work.getContext('2d');
@@ -327,45 +562,26 @@ export function processImage(img) {
   // Step 3: Edge detection (Sobel)
   const edges = sobelEdges(blurred, w, h);
 
-  // Step 4: Find document contour
-  let corners = findDocumentCorners(edges, w, h);
+  // Step 4: Find document contour — try robust contour method first, then legacy
+  let corners = findDocumentQuadRobust(edges, w, h) || findDocumentCorners(edges, w, h);
 
-  // Step 5: Deskew + perspective warp if corners found
+  // Step 5: Perspective warp if corners found (handles any rotation angle)
   let output;
   if (corners) {
-    const angle = computeSkewAngle(corners);
-    const rotated = applyRotation(work, angle);
-
-    if (rotated !== work) {
-      // Rotation was applied (> 1 degree) — re-detect corners on rotated canvas
-      const rCtx = rotated.getContext('2d');
-      const rData = rCtx.getImageData(0, 0, rotated.width, rotated.height);
-      const rW = rotated.width;
-      const rH = rotated.height;
-
-      const rGray = new Uint8Array(rW * rH);
-      for (let i = 0; i < rW * rH; i++) {
-        const ri = rData.data[i * 4];
-        const gi = rData.data[i * 4 + 1];
-        const bi = rData.data[i * 4 + 2];
-        rGray[i] = Math.round(0.299 * ri + 0.587 * gi + 0.114 * bi);
-      }
-
-      const rBlurred = gaussianBlur(rGray, rW, rH);
-      const rEdges = sobelEdges(rBlurred, rW, rH);
-      const rCorners = findDocumentCorners(rEdges, rW, rH);
-
-      output = rCorners ? perspectiveWarp(rotated, rCorners) : rotated;
-    } else {
-      // No significant rotation — use original corners
-      output = perspectiveWarp(work, corners);
-    }
+    output = perspectiveWarp(work, corners);
+    work.width = 0; // release source
   } else {
     output = work;
   }
 
+  // Clone the corrected canvas before B&W threshold (for OCR use)
+  const corrected = document.createElement('canvas');
+  corrected.width = output.width;
+  corrected.height = output.height;
+  corrected.getContext('2d').drawImage(output, 0, 0);
+
   // Step 6: Apply adaptive threshold B&W filter for scanned look
   applyAdaptiveThreshold(output);
 
-  return output;
+  return { scanned: output, corrected };
 }

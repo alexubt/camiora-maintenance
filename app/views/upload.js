@@ -228,6 +228,17 @@ function renderApp() {
           <div class="file-list" id="fileList"></div>
         </div>
 
+        <div id="ocrResults" class="ocr-results" style="display:none;">
+          <div class="ocr-results-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            Detected from scan
+          </div>
+          <div id="ocrResultRows"></div>
+        </div>
+
         <div id="previewBox" class="preview-box" style="display:none;">
           <div class="preview-label">Will upload as</div>
           <div class="preview-name" id="previewName"></div>
@@ -585,6 +596,8 @@ async function handleSubmit() {
     document.getElementById('invoiceCost').value = '';
     document.getElementById('serviceType').value = '';
     document.getElementById('serviceDate').value = new Date().toISOString().split('T')[0];
+    const ocrBox = document.getElementById('ocrResults');
+    if (ocrBox) ocrBox.style.display = 'none';
     state.isUploading = false;
     updateAll();
     return;
@@ -702,24 +715,93 @@ async function handleSubmit() {
   }
 }
 
-// ── OCR pre-fill (only sets empty fields) ─────────────────────────────────────
+// ── Service type display names ───────────────────────────────────────────────
+const svcDisplayNames = {
+  'oil-change': 'Oil change',
+  'tire-rotation': 'Tire rotation',
+  'brake-inspection': 'Brake inspection',
+  'dot-inspection': 'DOT inspection',
+  'pm-service': 'PM service',
+  'engine-repair': 'Engine repair',
+  'transmission': 'Transmission',
+  'electrical': 'Electrical',
+  'ac-service': 'A/C service',
+};
+
+// ── OCR pre-fill with fleet validation ──────────────────────────────────────
 function prefillFormFields(fields) {
+  const rows = [];
+
+  // --- Unit validation ---
   if (fields.unitNumber) {
     const sel = document.getElementById('unitId');
-    if (sel && !sel.value) {
-      // Try to find a unit whose UnitId contains the OCR number
-      const match = state.fleet.units.find(u =>
-        u.UnitId && u.UnitId.includes(fields.unitNumber)
-      );
-      if (match) sel.value = match.UnitId;
+    const match = state.fleet.units.find(u =>
+      u.UnitId && u.UnitId.includes(fields.unitNumber)
+    );
+
+    if (match) {
+      // Found in fleet list — auto-select
+      if (sel) sel.value = match.UnitId;
+      rows.push(`<div class="ocr-row ocr-found">
+        <span class="ocr-label">Unit</span>
+        <span class="ocr-value">${match.UnitId}</span>
+        <span class="ocr-badge ocr-badge-ok">Matched</span>
+      </div>`);
+    } else {
+      // Not found — show warning, user must select manually
+      rows.push(`<div class="ocr-row ocr-missing">
+        <span class="ocr-label">Unit</span>
+        <span class="ocr-value">${fields.unitRaw || fields.unitNumber}</span>
+        <span class="ocr-badge ocr-badge-warn">Not in unit list — please select</span>
+      </div>`);
     }
   }
-  if (fields.date && !document.getElementById('serviceDate').value) {
-    document.getElementById('serviceDate').value = fields.date;
+
+  // --- Date ---
+  if (fields.date) {
+    // Normalize US slash dates to ISO format for the date input
+    let isoDate = fields.date;
+    const slashMatch = fields.date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slashMatch) {
+      const [, m, d, y] = slashMatch;
+      isoDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+
+    const dateInput = document.getElementById('serviceDate');
+    if (dateInput && !dateInput.value) {
+      dateInput.value = isoDate;
+    }
+
+    rows.push(`<div class="ocr-row ocr-found">
+      <span class="ocr-label">Date</span>
+      <span class="ocr-value">${fields.date}</span>
+      <span class="ocr-badge ocr-badge-ok">Applied</span>
+    </div>`);
   }
-  if (fields.serviceType && !document.getElementById('serviceType').value) {
-    document.getElementById('serviceType').value = fields.serviceType;
+
+  // --- Service type ---
+  if (fields.serviceType) {
+    const svcSelect = document.getElementById('serviceType');
+    if (svcSelect && !svcSelect.value) {
+      svcSelect.value = fields.serviceType;
+    }
+
+    const displayName = svcDisplayNames[fields.serviceType] || fields.serviceType;
+    rows.push(`<div class="ocr-row ocr-found">
+      <span class="ocr-label">Service</span>
+      <span class="ocr-value">${displayName}</span>
+      <span class="ocr-badge ocr-badge-ok">Applied</span>
+    </div>`);
   }
+
+  // Show the OCR results banner
+  const ocrBox = document.getElementById('ocrResults');
+  const ocrRowsEl = document.getElementById('ocrResultRows');
+  if (ocrBox && ocrRowsEl && rows.length) {
+    ocrRowsEl.innerHTML = rows.join('');
+    ocrBox.style.display = 'block';
+  }
+
   updateAll();
 }
 
