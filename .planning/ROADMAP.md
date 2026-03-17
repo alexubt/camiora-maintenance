@@ -96,7 +96,10 @@ Plans:
   1. The main screen shows overdue and due-soon maintenance items without any tapping or filtering
   2. A unit list with at-a-glance status (ok / due soon / overdue) is visible on the main screen
   3. Tapping any item on the dashboard navigates directly to that unit's detail page
-**Plans**: TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 05-01-PLAN.md — Dashboard view with overdue/due-soon alerts and unit status grid, wired as default route
 
 ### Phase 6: Auth Hardening and PWA Reliability
 **Goal**: The app works reliably in the field — no mid-upload auth failures, no data loss on reconnect, and installs cleanly on phones
@@ -119,5 +122,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Scanner and OCR | 3/3 | Complete    | 2026-03-17 |
 | 3. Invoice Workflow | 0/3 | Complete    | 2026-03-17 |
 | 4. Maintenance Tracking | 3/3 | Complete    | 2026-03-17 |
-| 5. Dashboard | 0/TBD | Not started | - |
+| 5. Dashboard | 0/1 | Not started | - |
 | 6. Auth Hardening and PWA Reliability | 0/TBD | Not started | - |
