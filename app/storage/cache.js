@@ -3,29 +3,9 @@
  * Native ES module. No library dependencies.
  */
 
-const DB_NAME = 'camiora';
-const DB_VERSION = 1;
+import { openDB } from './db.js';
+
 const STORE_NAME = 'fleet';
-
-/**
- * Open (or create) the IndexedDB database.
- * @returns {Promise<IDBDatabase>}
- */
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
 
 /**
  * Read cached fleet data from IndexedDB.
