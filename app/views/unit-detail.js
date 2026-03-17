@@ -6,6 +6,7 @@
 import { state } from '../state.js';
 import { downloadCSV, parseCSV, serializeCSV, writeCSVWithLock } from '../graph/csv.js';
 import { isOverdue, getDueDate, getDueMiles } from '../maintenance/schedule.js';
+import { MILESTONES, TIRE_POSITIONS, getMilestoneStatus } from '../maintenance/milestones.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -302,6 +303,61 @@ function renderUnitPage(container, unitId, data) {
         </div>
       </div>
 
+      <!-- Maintenance Milestones Section -->
+      <div style="margin-bottom:20px;">
+        <h3 style="margin:0 0 8px;font-size:16px;">Maintenance Milestones</h3>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="border-bottom:2px solid #dee2e6;text-align:left;">
+                <th style="padding:8px 4px;">Milestone</th>
+                <th style="padding:8px 4px;">Last Done</th>
+                <th style="padding:8px 4px;">Interval</th>
+                <th style="padding:8px 4px;">Next Due</th>
+                <th style="padding:8px 4px;">Status</th>
+                <th style="padding:8px 4px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${MILESTONES.map(ms => {
+                const s = getMilestoneStatus(ms, data.maintenance, currentMiles);
+                const lastStr = s.lastDoneMiles != null ? Number(s.lastDoneMiles).toLocaleString() + ' mi' : '---';
+                const intStr = ms.intervalMiles != null ? ms.intervalMiles.toLocaleString() + ' mi' : '---';
+                const nextStr = s.nextDueMiles != null ? Number(s.nextDueMiles).toLocaleString() + ' mi' : '---';
+                let badge;
+                if (s.status === 'overdue') badge = statusBadge('overdue', 'Overdue');
+                else if (s.status === 'ok') badge = statusBadge('ok', 'OK');
+                else badge = statusBadge('unknown', 'N/A');
+                return \`<tr style="border-bottom:1px solid #eee;">
+                  <td style="padding:8px 4px;">\${escapeHtml(ms.label)}</td>
+                  <td style="padding:8px 4px;">\${lastStr}</td>
+                  <td style="padding:8px 4px;">\${intStr}</td>
+                  <td style="padding:8px 4px;">\${nextStr}</td>
+                  <td style="padding:8px 4px;">\${badge}</td>
+                  <td style="padding:8px 4px;"><button data-action="milestone-done" data-milestone-type="\${ms.type}" style="background:none;border:1px solid #999;color:#666;padding:2px 8px;border-radius:6px;font-size:11px;cursor:pointer;">Done</button></td>
+                </tr>\`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Notable Mentions -->
+        <div style="margin-top:16px;background:var(--bg-2, #f8f9fa);border-radius:12px;padding:14px 16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <strong style="font-size:14px;">Notable Mentions</strong>
+            <button data-action="edit-notable" style="background:none;border:1px solid var(--green-dark, #28a745);color:var(--green-dark, #28a745);padding:2px 10px;border-radius:8px;font-size:12px;cursor:pointer;">Edit</button>
+          </div>
+          <p id="notableText" style="margin:8px 0 0;font-size:13px;color:var(--text-1);">${escapeHtml(data.condition?.TireNotes || '---')}</p>
+          <div id="notableForm" style="display:none;margin-top:8px;">
+            <textarea id="notableInput" rows="3" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;font-family:inherit;">${escapeHtml(data.condition?.TireNotes || '')}</textarea>
+            <div style="margin-top:6px;">
+              <button data-action="save-notable" style="background:var(--green-dark, #28a745);color:#fff;border:none;padding:6px 16px;border-radius:8px;font-size:13px;cursor:pointer;">Save</button>
+              <button data-action="cancel-notable" style="background:none;border:none;color:var(--text-2);padding:6px 10px;font-size:13px;cursor:pointer;">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- PM Schedule Section -->
       <div style="margin-bottom:20px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -439,6 +495,29 @@ function renderUnitPage(container, unitId, data) {
       const maintId = e.target.closest('[data-maint-id]')?.dataset?.maintId;
       if (maintId) handleMarkDone(container, unitId, maintId, currentMiles);
     }
+
+    if (action === 'milestone-done') {
+      const milestoneType = e.target.closest('[data-milestone-type]')?.dataset?.milestoneType;
+      if (milestoneType) handleMilestoneDone(container, unitId, milestoneType, currentMiles, data);
+    }
+
+    if (action === 'edit-notable') {
+      const form = container.querySelector('#notableForm');
+      const text = container.querySelector('#notableText');
+      if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+      if (text) text.style.display = form.style.display === 'none' ? 'block' : 'none';
+    }
+
+    if (action === 'cancel-notable') {
+      const form = container.querySelector('#notableForm');
+      const text = container.querySelector('#notableText');
+      if (form) form.style.display = 'none';
+      if (text) text.style.display = 'block';
+    }
+
+    if (action === 'save-notable') {
+      handleSaveNotable(container, unitId);
+    }
   });
 }
 
@@ -500,6 +579,47 @@ async function handleMarkDone(container, unitId, maintId, currentMiles) {
   } catch (err) {
     console.error('Mark done failed:', err);
     showToast(container, 'Update failed: ' + err.message, 'error');
+  }
+}
+
+async function handleMilestoneDone(container, unitId, milestoneType, currentMiles, data) {
+  const today = new Date().toISOString().split('T')[0];
+  const milestone = MILESTONES.find(m => m.type === milestoneType);
+  const existing = data.maintenance.find(r => r.Type === milestoneType);
+
+  try {
+    if (existing) {
+      await markDoneToday(existing.MaintId, currentMiles, state.token, state.fleet.maintenancePath);
+    } else {
+      const row = {
+        MaintId: Date.now().toString(36),
+        UnitId: unitId,
+        Type: milestoneType,
+        IntervalDays: '',
+        IntervalMiles: String(milestone?.intervalMiles || ''),
+        LastDoneDate: today,
+        LastDoneMiles: String(currentMiles),
+        Notes: '',
+      };
+      await appendMaintenanceRecord(row, state.token, state.fleet.maintenancePath, state.fleet.maintenanceHash);
+    }
+    showToast(container, 'Milestone recorded', 'success');
+    render(container, { id: unitId });
+  } catch (err) {
+    console.error('Milestone done failed:', err);
+    showToast(container, 'Update failed: ' + err.message, 'error');
+  }
+}
+
+async function handleSaveNotable(container, unitId) {
+  const value = (container.querySelector('#notableInput')?.value || '').trim();
+  try {
+    await saveConditionUpdate(unitId, { TireNotes: value }, state.token, state.fleet.conditionPath);
+    showToast(container, 'Notable mentions saved', 'success');
+    render(container, { id: unitId });
+  } catch (err) {
+    console.error('Notable mentions save failed:', err);
+    showToast(container, 'Save failed: ' + err.message, 'error');
   }
 }
 
