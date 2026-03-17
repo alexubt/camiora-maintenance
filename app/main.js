@@ -75,6 +75,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (state.token) {
     loadFleetData().then(() => {
       refreshUnitSelect();
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
     });
   }
 });
