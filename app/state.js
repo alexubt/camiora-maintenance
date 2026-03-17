@@ -11,7 +11,7 @@ export const state = {
     unitsHash:  null,
     unitsPath:  'Fleet Maintenance/data/units.csv',
   },
-  scanPages:    [],
+  scanPages:    [],   // Blob[] — processed JPEG blobs, NOT canvas objects
   activeUnitId: null,
   isUploading:  false,
 };

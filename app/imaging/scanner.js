@@ -259,6 +259,27 @@ export function applyAdaptiveThreshold(canvas) {
   ctx.putImageData(imageData, 0, 0);
 }
 
+// ── Load image from file ─────────────────────────────────────────────────────
+export function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(img.src); resolve(img); };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+// ── Process image and release canvas memory ─────────────────────────────────
+export async function processAndRelease(img) {
+  const canvas = processImage(img);
+  const blob = await new Promise(resolve =>
+    canvas.toBlob(resolve, 'image/jpeg', 0.85)
+  );
+  canvas.width = 0;   // release GPU memory
+  canvas.height = 0;
+  return blob;
+}
+
 // ── Main processing pipeline ──────────────────────────────────────────────────
 export function processImage(img) {
   const work = document.createElement('canvas');

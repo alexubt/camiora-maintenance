@@ -11,6 +11,7 @@ const STATIC = [
   './app/router.js',
   './app/views/upload.js',
   './app/imaging/scanner.js',
+  './app/imaging/ocr.js',
   './app/graph/auth.js',
   './app/graph/csv.js',
   './app/graph/files.js',

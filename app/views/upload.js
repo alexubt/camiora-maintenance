@@ -6,7 +6,8 @@
 import { state } from '../state.js';
 import { startLogin, signOut, CONFIG } from '../graph/auth.js';
 import { ensureFolder, uploadFile } from '../graph/files.js';
-import { processImage } from '../imaging/scanner.js';
+import { processAndRelease, loadImage } from '../imaging/scanner.js';
+import { runOCR } from '../imaging/ocr.js';
 
 // Module-level state
 let container = null;
@@ -265,12 +266,17 @@ async function handleCameraCapture(input) {
 
   try {
     const img = await loadImage(file);
-    const processed = processImage(img);
-    state.scanPages.push(processed);
+    const blob = await processAndRelease(img);
+    state.scanPages.push(blob);
     renderScanPages();
 
     // Auto-create PDF immediately (single page scan)
     await buildPdfFromPages();
+
+    // Run OCR on the processed image (non-blocking)
+    runOCR(blob).then(fields => {
+      if (fields) prefillFormFields(fields);
+    }).catch(err => console.error('OCR failed:', err));
   } catch (err) {
     console.error('Scan error:', err);
     showToast('Failed to process image', 'error');
@@ -280,20 +286,18 @@ async function handleCameraCapture(input) {
   zone.style.pointerEvents = '';
 }
 
-function loadImage(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(img.src); resolve(img); };
-    img.onerror = reject;
-    img.src = URL.createObjectURL(file);
-  });
-}
+// Track blob object URLs so we can revoke them on re-render (prevent memory leaks)
+let _scanPageURLs = [];
 
 // ── Scan pages UI ─────────────────────────────────────────────────────────────
 function renderScanPages() {
   const pagesEl   = document.getElementById('scanPages');
   const actions   = document.getElementById('scanActions');
   const separator = document.getElementById('orSeparator');
+
+  // Revoke previous object URLs
+  _scanPageURLs.forEach(url => URL.revokeObjectURL(url));
+  _scanPageURLs = [];
 
   if (!state.scanPages.length) {
     pagesEl.innerHTML = '';
@@ -305,10 +309,11 @@ function renderScanPages() {
   actions.style.display = 'flex';
   separator.style.display = 'flex';
 
-  pagesEl.innerHTML = state.scanPages.map((canvas, i) => {
-    const thumb = canvas.toDataURL('image/jpeg', 0.3);
+  pagesEl.innerHTML = state.scanPages.map((blob, i) => {
+    const url = URL.createObjectURL(blob);
+    _scanPageURLs.push(url);
     return `<div class="scan-page">
-      <img src="${thumb}" alt="Page ${i + 1}"/>
+      <img src="${url}" alt="Page ${i + 1}"/>
       <div class="scan-page-num">${i + 1}</div>
       <div class="scan-page-remove" data-action="removescan" data-index="${i}">×</div>
     </div>`;
@@ -337,22 +342,40 @@ async function buildPdfFromPages() {
 
   const { jsPDF } = window.jspdf;
 
-  const first = state.scanPages[0];
-  const landscape = first.width > first.height;
+  // Load first blob to get dimensions
+  const firstBmp = await createImageBitmap(state.scanPages[0]);
+  const firstW = firstBmp.width;
+  const firstH = firstBmp.height;
+  firstBmp.close();
+
+  const landscape = firstW > firstH;
   const pdf = new jsPDF({
     orientation: landscape ? 'landscape' : 'portrait',
     unit: 'px',
-    format: [first.width, first.height],
+    format: [firstW, firstH],
   });
 
   for (let i = 0; i < state.scanPages.length; i++) {
-    const canvas = state.scanPages[i];
+    const bmp = await createImageBitmap(state.scanPages[i]);
+    const bmpW = bmp.width;
+    const bmpH = bmp.height;
+
     if (i > 0) {
-      const l = canvas.width > canvas.height;
-      pdf.addPage([canvas.width, canvas.height], l ? 'landscape' : 'portrait');
+      pdf.addPage([bmpW, bmpH], bmpW > bmpH ? 'landscape' : 'portrait');
     }
-    const imgData = canvas.toDataURL('image/jpeg', 0.5);
-    pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
+
+    // Draw to temp canvas, extract data URL, release immediately
+    const tmp = document.createElement('canvas');
+    tmp.width = bmpW;
+    tmp.height = bmpH;
+    tmp.getContext('2d').drawImage(bmp, 0, 0);
+    bmp.close();  // release ImageBitmap
+
+    const imgData = tmp.toDataURL('image/jpeg', 0.5);
+    tmp.width = 0;  // release temp canvas memory
+    tmp.height = 0;
+
+    pdf.addImage(imgData, 'JPEG', 0, 0, bmpW, bmpH);
   }
 
   const blob = pdf.output('blob');
@@ -524,6 +547,20 @@ async function handleSubmit() {
     state.isUploading = false;
     updateAll();
   }
+}
+
+// ── OCR pre-fill (only sets empty fields) ─────────────────────────────────────
+function prefillFormFields(fields) {
+  if (fields.unitNumber && !document.getElementById('unitNum').value) {
+    document.getElementById('unitNum').value = fields.unitNumber;
+  }
+  if (fields.date && !document.getElementById('serviceDate').value) {
+    document.getElementById('serviceDate').value = fields.date;
+  }
+  if (fields.serviceType && !document.getElementById('serviceType').value) {
+    document.getElementById('serviceType').value = fields.serviceType;
+  }
+  updateAll();
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
