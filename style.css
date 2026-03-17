@@ -359,6 +359,38 @@ input:focus, select:focus {
   border-left: 3px solid #ffc107;
 }
 
+/* ── Bottom navigation ── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: calc(56px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--bg);
+  border-top: 0.5px solid var(--border);
+  z-index: 50;
+}
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 16px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-3);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.bottom-nav-item.active {
+  color: var(--green);
+}
+.bottom-nav-item:active {
+  opacity: 0.7;
+}
+
 /* ── Install banner ── */
 .install-banner {
   position: fixed;

@@ -223,10 +223,7 @@ function renderDashboard(container, allMaintenance, allCondition) {
 
   container.innerHTML = `
     <div style="padding:16px;padding-bottom:80px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 16px;">
-        <h2 style="margin:0;">Dashboard</h2>
-        <a href="#upload" style="color:var(--green-dark);text-decoration:none;font-size:14px;font-weight:500;">Upload &rarr;</a>
-      </div>
+      <h2 style="margin:0 0 16px;">Dashboard</h2>
 
       ${actionHtml}
 

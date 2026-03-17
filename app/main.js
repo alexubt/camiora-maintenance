@@ -121,6 +121,19 @@ window.addEventListener('DOMContentLoaded', async () => {
   initRouter(container);
   initInstallPrompt();
 
+  // Bottom nav: show when signed in, highlight active tab
+  const bottomNav = document.getElementById('bottomNav');
+  function updateNav() {
+    if (!state.token) { bottomNav.style.display = 'none'; return; }
+    bottomNav.style.display = '';
+    const route = (window.location.hash || '#upload').split('?')[0].replace('#', '');
+    bottomNav.querySelectorAll('.bottom-nav-item').forEach(a => {
+      a.classList.toggle('active', a.dataset.route === route);
+    });
+  }
+  window.addEventListener('hashchange', updateNav);
+  updateNav();
+
   // Register online event listener for queue drain
   window.addEventListener('online', drainUploadQueue);
 
