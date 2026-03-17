@@ -9,6 +9,7 @@ import { getCachedFleet, setCachedFleet } from './storage/cache.js';
 import { state } from './state.js';
 import { initRouter } from './router.js';
 import { refreshUnitSelect } from './views/upload.js';
+import { initInstallPrompt } from './install.js';
 
 // ── Fleet data loader (background, non-blocking) ─────────────────────────────
 async function loadFleetData() {
@@ -70,6 +71,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Initialize router — renders the upload view (which checks state.token)
   const container = document.getElementById('app');
   initRouter(container);
+  initInstallPrompt();
 
   // Load fleet data in background if authenticated (do not await — let UI render first)
   if (state.token) {
