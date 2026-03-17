@@ -1,12 +1,19 @@
-const CACHE = 'camiora-v3';
+const CACHE = 'camiora-v4';
 const STATIC = [
   './',
   './index.html',
-  './app.js',
   './style.css',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './app/main.js',
+  './app/state.js',
+  './app/router.js',
+  './app/views/upload.js',
+  './app/graph/auth.js',
+  './app/graph/csv.js',
+  './app/graph/files.js',
+  './app/storage/cache.js',
 ];
 
 self.addEventListener('install', e => {
