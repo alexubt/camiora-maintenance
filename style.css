@@ -317,3 +317,44 @@ input:focus, select:focus {
 .progress-ring { transform: rotate(-90deg); }
 .progress-track { fill: none; stroke: rgba(255,255,255,0.3); stroke-width: 3; }
 .progress-fill  { fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; transition: stroke-dashoffset 0.3s; }
+
+/* -- Dashboard -- */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.dash-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 14px 16px;
+  background: var(--bg-2);
+  border-radius: var(--radius);
+  border: 0.5px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+  color: inherit;
+}
+.dash-card:active { background: var(--bg-3); }
+.dash-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+.dash-action:active { opacity: 0.8; }
+.dash-action-overdue {
+  background: rgba(220,53,69,0.08);
+  border-left: 3px solid #dc3545;
+}
+.dash-action-due-soon {
+  background: rgba(255,193,7,0.08);
+  border-left: 3px solid #ffc107;
+}
