@@ -46,7 +46,7 @@
 
 - [x] **INFRA-01**: Home Screen install prompt for iOS/Android
 - [x] **INFRA-02**: Silent token refresh (no re-login interruption after 1 hour)
-- [ ] **INFRA-03**: Offline queue for uploads, sync when reconnected
+- [x] **INFRA-03**: Offline queue for uploads, sync when reconnected
 - [x] **INFRA-04**: ES module refactor of existing monolith `app.js`
 
 ## v2 Requirements
@@ -109,7 +109,7 @@
 | DASH-02 | Phase 5 | Complete |
 | INFRA-01 | Phase 6 | Complete |
 | INFRA-02 | Phase 6 | Complete |
-| INFRA-03 | Phase 6 | Pending |
+| INFRA-03 | Phase 6 | Complete |
 
 **Coverage:**
 - v1 requirements: 26 total
