@@ -12,7 +12,7 @@ This roadmap transforms the existing working PWA skeleton (auth, upload, scanner
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - ES module refactor and CSV data layer (unit roster, optimistic locking)
+- [x] **Phase 1: Foundation** - ES module refactor and CSV data layer (unit roster, optimistic locking) (completed 2026-03-17)
 - [ ] **Phase 2: Scanner and OCR** - Production-quality scanner with deskew, B&W, and OCR auto-fill
 - [ ] **Phase 3: Invoice Workflow** - Complete end-to-end invoice capture, naming, upload, and record
 - [ ] **Phase 4: Maintenance Tracking** - Per-unit PM schedules, overdue alerts, condition data, unit detail pages
@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Unit roster (trucks and trailers) is fetched from OneDrive CSV and available to the invoice form on page load
   3. A write to the fleet CSV succeeds only when the file hash matches the version last read (optimistic lock in place)
   4. The hash-based router switches between `#upload` and other views without page reload
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 01-01-PLAN.md — CSV data layer with tests (parseCSV, hashText, optimistic lock) + state/cache modules
@@ -100,7 +100,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 2/3 | In Progress |  |
+| 1. Foundation | 2/3 | Complete    | 2026-03-17 |
 | 2. Scanner and OCR | 0/TBD | Not started | - |
 | 3. Invoice Workflow | 0/TBD | Not started | - |
 | 4. Maintenance Tracking | 0/TBD | Not started | - |
