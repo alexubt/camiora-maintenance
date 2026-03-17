@@ -35,6 +35,13 @@ export function refreshUnitSelect() {
         `<option value="${u.UnitId}"${u.UnitId === current ? ' selected' : ''}>${u.UnitId}</option>`
       ).join('')
     : '<option value="">Loading units...</option>';
+  // Show/update unit detail link
+  const unitLink = document.getElementById('unitDetailLink');
+  if (unitLink && state.fleet.units.length) {
+    const activeId = sel.value || state.fleet.units[0].UnitId;
+    unitLink.href = `#unit?id=${activeId}`;
+    unitLink.style.display = '';
+  }
   updateAll();
 }
 
@@ -93,15 +100,18 @@ function renderApp() {
 
         <div class="field">
           <label>Unit</label>
-          <div class="select-wrap">
-            <select id="unitId">
-              ${state.fleet.units.length
-                ? state.fleet.units.map(u =>
-                    `<option value="${u.UnitId}">${u.UnitId}</option>`
-                  ).join('')
-                : '<option value="">Loading units...</option>'
-              }
-            </select>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="select-wrap" style="flex:1;">
+              <select id="unitId">
+                ${state.fleet.units.length
+                  ? state.fleet.units.map(u =>
+                      `<option value="${u.UnitId}">${u.UnitId}</option>`
+                    ).join('')
+                  : '<option value="">Loading units...</option>'
+                }
+              </select>
+            </div>
+            <a id="unitDetailLink" href="#unit?id=${state.fleet.units.length ? state.fleet.units[0].UnitId : ''}" style="color:var(--green-dark);font-size:13px;text-decoration:none;white-space:nowrap;${state.fleet.units.length ? '' : 'display:none;'}">View unit</a>
           </div>
         </div>
 
@@ -460,6 +470,17 @@ function updateAll() {
   const unitId = document.getElementById('unitId')?.value || '';
   const svc = getServiceLabel(st, document.getElementById('otherText')?.value || '');
   const date = document.getElementById('serviceDate')?.value || '';
+
+  // Update "View unit" link
+  const unitLink = document.getElementById('unitDetailLink');
+  if (unitLink) {
+    if (unitId) {
+      unitLink.href = `#unit?id=${unitId}`;
+      unitLink.style.display = '';
+    } else {
+      unitLink.style.display = 'none';
+    }
+  }
 
   const preview = document.getElementById('previewBox');
   if (preview) {
