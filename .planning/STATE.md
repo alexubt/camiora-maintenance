@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: executing
+stopped_at: Completed 01-01-PLAN.md (CSV data layer)
+last_updated: "2026-03-17T03:22:00.000Z"
+last_activity: 2026-03-17 — Completed 01-01 CSV data layer
+progress:
+  total_phases: 6
+  completed_phases: 0
+  total_plans: 3
+  completed_plans: 1
+  percent: 33
+---
+
 # Project State
 
 ## Project Reference
@@ -10,24 +26,24 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 1 of 6 (Foundation)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-16 — Roadmap created
+Plan: 1 of 3 in current phase
+Status: Executing
+Last activity: 2026-03-17 — Completed 01-01 CSV data layer
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 3min
+- Total execution time: 0.05 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-foundation | 1/3 | 3min | 3min |
 
 **Recent Trend:**
 - Last 5 plans: —
@@ -46,6 +62,8 @@ Recent decisions affecting current work:
 - Init: Optimistic locking (hash-check before PUT) for concurrent CSV writes
 - Init: Vanilla JS + no build step — all new modules must be native ES modules served from GitHub Pages
 - Init: Tesseract.js was removed (commit ae67a4c) — OCR-01/02/03 require re-introduction as v1 requirements
+- 01-01: Used Node.js built-in test runner (node:test) for zero-dependency testing
+- 01-01: hashText is pure (no normalization); downloadCSV normalizes CRLF before hashing
 
 ### Pending Todos
 
@@ -59,6 +77,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16
-Stopped at: Roadmap created, STATE.md initialized — ready to plan Phase 1
+Last session: 2026-03-17
+Stopped at: Completed 01-01-PLAN.md (CSV data layer)
 Resume file: None

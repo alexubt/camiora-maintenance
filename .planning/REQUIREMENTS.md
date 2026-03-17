@@ -29,13 +29,13 @@
 
 ### Fleet Data
 
-- [ ] **FLEET-01**: Unit roster loaded from CSV on OneDrive (trucks and trailers)
+- [x] **FLEET-01**: Unit roster loaded from CSV on OneDrive (trucks and trailers)
 - [ ] **FLEET-02**: Per-unit invoice history (date, vendor, cost, type — linked to PDFs)
 - [ ] **FLEET-03**: Scheduled maintenance tracking with intervals and due dates
 - [ ] **FLEET-04**: Overdue maintenance alerts
 - [ ] **FLEET-05**: Unit condition tracking (mileage/hours, DOT inspection status, tire data)
 - [ ] **FLEET-06**: Unit detail page showing full history and condition
-- [ ] **FLEET-07**: CSV optimistic locking (hash-check before write, diff-merge changes)
+- [x] **FLEET-07**: CSV optimistic locking (hash-check before write, diff-merge changes)
 
 ### Dashboard
 
@@ -85,8 +85,8 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | INFRA-04 | Phase 1 | Pending |
-| FLEET-01 | Phase 1 | Pending |
-| FLEET-07 | Phase 1 | Pending |
+| FLEET-01 | Phase 1 | Complete |
+| FLEET-07 | Phase 1 | Complete |
 | SCAN-01 | Phase 2 | Pending |
 | SCAN-02 | Phase 2 | Pending |
 | SCAN-03 | Phase 2 | Pending |
