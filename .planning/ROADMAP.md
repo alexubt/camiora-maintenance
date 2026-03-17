@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - ES module refactor and CSV data layer (unit roster, optimistic locking) (completed 2026-03-17)
 - [x] **Phase 2: Scanner and OCR** - Production-quality scanner with deskew, B&W, and OCR auto-fill (completed 2026-03-17)
-- [ ] **Phase 3: Invoice Workflow** - Complete end-to-end invoice capture, naming, upload, and record
+- [x] **Phase 3: Invoice Workflow** - Complete end-to-end invoice capture, naming, upload, and record (completed 2026-03-17)
 - [ ] **Phase 4: Maintenance Tracking** - Per-unit PM schedules, overdue alerts, condition data, unit detail pages
 - [ ] **Phase 5: Dashboard** - Action-focused main screen showing what needs attention now
 - [ ] **Phase 6: Auth Hardening and PWA Reliability** - Silent token refresh, Home Screen install, offline queue
@@ -64,7 +64,7 @@ Plans:
   3. The filename preview shows `UNIT_DATE_TYPE.pdf` before the user taps upload
   4. The PDF uploads to the correct per-unit OneDrive folder (`/Fleet/UNIT/Invoices/`)
   5. An invoice record (date, type, cost, PDF link) is appended to the fleet CSV after successful upload
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 03-01-PLAN.md — TDD: Extract pure naming functions + invoice record module with tests
@@ -112,7 +112,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/3 | Complete    | 2026-03-17 |
 | 2. Scanner and OCR | 3/3 | Complete    | 2026-03-17 |
-| 3. Invoice Workflow | 0/3 | Not started | - |
+| 3. Invoice Workflow | 0/3 | Complete    | 2026-03-17 |
 | 4. Maintenance Tracking | 0/TBD | Not started | - |
 | 5. Dashboard | 0/TBD | Not started | - |
 | 6. Auth Hardening and PWA Reliability | 0/TBD | Not started | - |
