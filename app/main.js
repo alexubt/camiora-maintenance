@@ -4,7 +4,7 @@
  */
 
 import { loadToken, exchangeCodeForToken, saveToken, getValidToken } from './graph/auth.js';
-import { downloadCSV, parseCSV } from './graph/csv.js';
+import { downloadCSV, parseCSV, serializeCSV, hashText } from './graph/csv.js';
 import { getCachedFleet, setCachedFleet } from './storage/cache.js';
 import { dequeueAll, removeJob } from './storage/uploadQueue.js';
 import { ensureFolder, uploadFile } from './graph/files.js';
@@ -13,6 +13,7 @@ import { state } from './state.js';
 import { initRouter } from './router.js';
 import { refreshUnitSelect } from './views/upload.js';
 import { initInstallPrompt } from './install.js';
+import { UNIT_HEADERS } from './fleet/units.js';
 
 // ── Upload queue drain (retries queued offline uploads) ──────────────────────
 async function drainUploadQueue() {
@@ -68,9 +69,21 @@ async function loadFleetData() {
       state.fleet.unitsHash = hash;
       setCachedFleet({ units, hash }).catch(() => {});
     } else {
-      // 404 — file does not exist yet
+      // 404 — file does not exist yet; create blank CSV with header row
+      console.log('Fleet CSV not found (404) — initializing blank units.csv');
+      const blankCSV = serializeCSV(UNIT_HEADERS, []);
+      const encodedPath = state.fleet.unitsPath.split('/').map(encodeURIComponent).join('/');
+      const putUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodedPath}:/content`;
+      const putResp = await fetch(putUrl, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain' },
+        body: blankCSV,
+      });
+      if (putResp.ok) {
+        state.fleet.unitsHash = await hashText(blankCSV);
+        console.log('Blank units.csv created on OneDrive');
+      }
       state.fleet.units = [];
-      console.log('Fleet CSV not found (404) — units list empty');
     }
   } catch (err) {
     // Network error — if we have cached data, silently continue
