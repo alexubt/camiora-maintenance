@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 01-03-PLAN.md (browser verification) -- Phase 1 complete
-last_updated: "2026-03-17T03:41:38.260Z"
-last_activity: 2026-03-17 — Completed 01-03 browser verification (Phase 1 done)
+status: in-progress
+stopped_at: Completed 02-01-PLAN.md (scanner module extraction)
+last_updated: "2026-03-17T04:12:15.000Z"
+last_activity: 2026-03-17 — Completed 02-01 scanner module extraction with deskew
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_plans: 6
+  completed_plans: 4
+  percent: 67
 ---
 
 # Project State
@@ -21,29 +21,30 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Scan an invoice on a phone, have it auto-named and filed in the right OneDrive folder — saves hundreds of hours of manual data entry
-**Current focus:** Phase 1 — Foundation
+**Current focus:** Phase 2 — Scanner & OCR
 
 ## Current Position
 
-Phase: 1 of 6 (Foundation) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase Complete
-Last activity: 2026-03-17 — Completed 01-03 browser verification (Phase 1 done)
+Phase: 2 of 6 (Scanner & OCR)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-03-17 — Completed 02-01 scanner module extraction with deskew
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 3.3min
-- Total execution time: 0.17 hours
+- Total plans completed: 4
+- Average duration: 3.5min
+- Total execution time: 0.23 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 3/3 | 10min | 3.3min |
+| 02-scanner-and-ocr | 1/3 | 4min | 4min |
 
 **Recent Trend:**
 - Last 5 plans: —
@@ -69,6 +70,9 @@ Recent decisions affecting current work:
 - 01-02: signOut() no longer calls renderAuth -- caller handles re-rendering
 - 01-02: Fleet data loaded in background without await (UI renders first)
 - 01-03: Auto-approved browser verification checkpoint -- all Phase 1 modules validated
+- 02-01: Image processing functions extracted to app/imaging/scanner.js (not in upload.js)
+- 02-01: applyAdaptiveThresholdToArray pure function for testability without Canvas/DOM
+- 02-01: Deskew re-runs edge detection after rotation > 1 degree for accurate warp
 
 ### Pending Todos
 
@@ -83,5 +87,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-17
-Stopped at: Completed 01-03-PLAN.md (browser verification) -- Phase 1 complete
+Stopped at: Completed 02-01-PLAN.md (scanner module extraction)
 Resume file: None

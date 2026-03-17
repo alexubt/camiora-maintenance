@@ -7,10 +7,10 @@
 
 ### Scanner
 
-- [ ] **SCAN-01**: Image is converted to B&W with high contrast to look like a scanned document
-- [ ] **SCAN-02**: Crooked photos are automatically deskewed/straightened
+- [x] **SCAN-01**: Image is converted to B&W with high contrast to look like a scanned document
+- [x] **SCAN-02**: Crooked photos are automatically deskewed/straightened
 - [ ] **SCAN-03**: Canvas memory is released after processing to prevent iOS crashes
-- [ ] **SCAN-04**: jsPDF upgraded to 4.2.0 (security fix + better encoding)
+- [x] **SCAN-04**: jsPDF upgraded to 4.2.0 (security fix + better encoding)
 
 ### OCR
 
@@ -87,10 +87,10 @@
 | INFRA-04 | Phase 1 | Complete |
 | FLEET-01 | Phase 1 | Complete |
 | FLEET-07 | Phase 1 | Complete |
-| SCAN-01 | Phase 2 | Pending |
-| SCAN-02 | Phase 2 | Pending |
+| SCAN-01 | Phase 2 | Complete |
+| SCAN-02 | Phase 2 | Complete |
 | SCAN-03 | Phase 2 | Pending |
-| SCAN-04 | Phase 2 | Pending |
+| SCAN-04 | Phase 2 | Complete |
 | OCR-01 | Phase 2 | Pending |
 | OCR-02 | Phase 2 | Pending |
 | OCR-03 | Phase 2 | Pending |
