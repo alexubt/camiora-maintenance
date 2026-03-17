@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-03-17T06:07:14Z"
-last_activity: 2026-03-17 — Completed 06-02 PWA install prompt
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-03-17T06:10:08Z"
+last_activity: 2026-03-17 — Completed 06-01 Silent token refresh
 progress:
   total_phases: 6
   completed_phases: 5
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 6 of 6 (Auth Hardening & PWA Reliability)
-Plan: 2 of 3 in current phase -- COMPLETE
+Plan: 1 of 3 in current phase -- COMPLETE
 Status: In Progress
-Last activity: 2026-03-17 — Completed 06-02 PWA install prompt
+Last activity: 2026-03-17 — Completed 06-01 Silent token refresh
 
 Progress: [█████████░] 88%
 
@@ -60,6 +60,7 @@ Progress: [█████████░] 88%
 | Phase 04 P02 | 4min | 2 tasks | 5 files |
 | Phase 04 P03 | 1min | 1 tasks | 0 files |
 | Phase 05 P01 | 3min | 2 tasks | 4 files |
+| Phase 06 P01 | 5min | 2 tasks | 5 files |
 | Phase 06 P02 | 3min | 2 tasks | 5 files |
 
 ## Accumulated Context
@@ -101,6 +102,9 @@ Recent decisions affecting current work:
 - [Phase 04]: Auto-approved Phase 4 verification checkpoint -- all maintenance tracking requirements confirmed
 - 05-01: Local escapeHtml in dashboard.js to avoid coupling to unit-detail.js
 - 05-01: Dashboard re-renders via hashchange dispatch after fleet data loads
+- 06-01: Refresh token stored only in sessionStorage, never in state object, to prevent stale rotating token copies
+- 06-01: getValidToken refreshes when within 5 min of expiry, returns existing token if still valid
+- 06-01: saveToken accepts both object (new) and string (legacy) for backward compatibility
 - 06-02: Install banner appended to document.body (not #app) so it survives route changes
 - 06-02: sessionStorage for banner dismissal -- resets each browser session
 - 06-02: beforeinstallprompt listener at module load, initInstallPrompt() called after router init
@@ -117,6 +121,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T06:07:14Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-03-17T06:10:08Z
+Stopped at: Completed 06-01-PLAN.md
 Resume file: None
