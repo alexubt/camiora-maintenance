@@ -8,6 +8,8 @@ import { startLogin, signOut, CONFIG } from '../graph/auth.js';
 import { ensureFolder, uploadFile } from '../graph/files.js';
 import { processAndRelease, loadImage } from '../imaging/scanner.js';
 import { runOCR } from '../imaging/ocr.js';
+import { getBaseName, buildFolderPath, getServiceLabel } from '../invoice/naming.js';
+import { appendInvoiceRecord } from '../invoice/record.js';
 
 // Module-level state
 let container = null;
@@ -21,6 +23,19 @@ export function render(el) {
   } else {
     renderApp();
   }
+}
+
+// ── Refresh unit select (called from main.js after fleet data loads) ──────────
+export function refreshUnitSelect() {
+  const sel = document.getElementById('unitId');
+  if (!sel) return;  // upload view not rendered
+  const current = sel.value;
+  sel.innerHTML = state.fleet.units.length
+    ? state.fleet.units.map(u =>
+        `<option value="${u.UnitId}"${u.UnitId === current ? ' selected' : ''}>${u.UnitId}</option>`
+      ).join('')
+    : '<option value="">Loading units...</option>';
+  updateAll();
 }
 
 // ── Auth screen ────────────────────────────────────────────────────────────────
@@ -76,21 +91,17 @@ function renderApp() {
     <div class="scroll-body">
       <div class="form-body">
 
-        <div class="row">
-          <div class="field">
-            <label>Unit type</label>
-            <div class="select-wrap">
-              <select id="unitType">
-                <option value="">Type…</option>
-                <option value="Trucks">Truck</option>
-                <option value="Trailers">Trailer</option>
-              </select>
-            </div>
-          </div>
-          <div class="field">
-            <label>Unit #</label>
-            <input type="text" id="unitNum" placeholder="042"
-              inputmode="numeric" autocomplete="off" style="letter-spacing:1px;"/>
+        <div class="field">
+          <label>Unit</label>
+          <div class="select-wrap">
+            <select id="unitId">
+              ${state.fleet.units.length
+                ? state.fleet.units.map(u =>
+                    `<option value="${u.UnitId}">${u.UnitId}</option>`
+                  ).join('')
+                : '<option value="">Loading units...</option>'
+              }
+            </select>
           </div>
         </div>
 
@@ -125,9 +136,9 @@ function renderApp() {
             <input type="date" id="serviceDate"/>
           </div>
           <div class="field">
-            <label>Mileage (opt.)</label>
-            <input type="text" id="mileage" placeholder="124500"
-              inputmode="numeric"/>
+            <label>Cost (opt.)</label>
+            <input type="text" id="invoiceCost" placeholder="450.00"
+              inputmode="decimal"/>
           </div>
         </div>
 
@@ -205,12 +216,11 @@ function renderApp() {
     renderAuth();
   });
 
-  container.querySelector('#unitType').addEventListener('change', updateAll);
-  container.querySelector('#unitNum').addEventListener('input', updateAll);
+  container.querySelector('#unitId').addEventListener('change', updateAll);
   container.querySelector('#serviceType').addEventListener('change', updateAll);
   container.querySelector('#otherText').addEventListener('input', updateAll);
   container.querySelector('#serviceDate').addEventListener('input', updateAll);
-  container.querySelector('#mileage').addEventListener('input', updateAll);
+  container.querySelector('#invoiceCost').addEventListener('input', updateAll);
 
   container.querySelector('#scanZone').addEventListener('click', openCamera);
   container.querySelector('#cameraInput').addEventListener('change', (e) => {
@@ -410,7 +420,7 @@ function renderFileList() {
   if (!files.length) { list.innerHTML = ''; return; }
 
   list.innerHTML = files.map((f, i) => {
-    const name  = getBaseName(i);
+    const name  = getBaseNameFromForm(i);
     const ext   = f.name.split('.').pop();
     return `<div class="file-item">
       <div class="file-thumb">
@@ -429,27 +439,17 @@ function renderFileList() {
 }
 
 // ── Naming ────────────────────────────────────────────────────────────────────
-function getServiceLabel() {
-  const v = document.getElementById('serviceType')?.value || '';
-  if (v === 'other') {
-    return (document.getElementById('otherText')?.value || '')
-      .trim().replace(/\s+/g, '-').toLowerCase() || 'other';
-  }
-  return v;
-}
-
-function getBaseName(i) {
-  const type = document.getElementById('unitType')?.value   || '';
-  const num  = (document.getElementById('unitNum')?.value   || '').trim();
-  const svc  = getServiceLabel();
+function getBaseNameFromForm(i) {
+  const unitId = document.getElementById('unitId')?.value || '';
+  const svc = getServiceLabel(
+    document.getElementById('serviceType')?.value || '',
+    document.getElementById('otherText')?.value || ''
+  );
   const date = document.getElementById('serviceDate')?.value || '';
-  const mi   = (document.getElementById('mileage')?.value   || '').trim();
-  if (!type || !num || !svc || !date) return null;
-  const prefix  = type === 'Trucks' ? 'TR' : 'TL';
-  const padded  = num.padStart(3, '0');
-  const miPart  = mi ? `_${mi}mi` : '';
-  const idxPart = files.length > 1 ? `-${i + 1}` : '';
-  return `${prefix}-${padded}_${svc}_${date}${miPart}${idxPart}`;
+  if (!unitId || !svc || !date) return null;
+  const name = getBaseName(unitId, svc, date);
+  if (files.length > 1 && name) return `${name}-${i + 1}`;
+  return name;
 }
 
 function updateAll() {
@@ -457,21 +457,18 @@ function updateAll() {
   const ow = document.getElementById('otherWrap');
   if (ow) ow.style.display = st === 'other' ? 'flex' : 'none';
 
-  const type = document.getElementById('unitType')?.value    || '';
-  const num  = (document.getElementById('unitNum')?.value    || '').trim();
-  const svc  = getServiceLabel();
+  const unitId = document.getElementById('unitId')?.value || '';
+  const svc = getServiceLabel(st, document.getElementById('otherText')?.value || '');
   const date = document.getElementById('serviceDate')?.value || '';
 
   const preview = document.getElementById('previewBox');
   if (preview) {
-    if (type && num && svc && date) {
-      const prefix = type === 'Trucks' ? 'TR' : 'TL';
-      const padded = num.padStart(3, '0');
-      const extra  = files.length > 1 ? ` (+${files.length - 1} more)` : '';
+    if (unitId && svc && date) {
+      const extra = files.length > 1 ? ` (+${files.length - 1} more)` : '';
       document.getElementById('previewName').textContent =
-        `${prefix}-${padded}_${svc}_${date}${files.length > 1 ? '-1' : ''}${extra}`;
+        `${getBaseName(unitId, svc, date)}${files.length > 1 ? '-1' : ''}.pdf${extra}`;
       document.getElementById('previewPath').textContent =
-        `OneDrive / ${CONFIG.ONEDRIVE_BASE} / ${type} / ${prefix}-${padded} / Maintenance /`;
+        `OneDrive / ${buildFolderPath(unitId).replace(/\//g, ' / ')} /`;
       preview.style.display = 'block';
     } else {
       preview.style.display = 'none';
@@ -479,7 +476,7 @@ function updateAll() {
   }
 
   const btn = document.getElementById('submitBtn');
-  if (btn) btn.disabled = !(type && num && svc && date && files.length) || state.isUploading;
+  if (btn) btn.disabled = !(unitId && svc && date && files.length) || state.isUploading;
 
   renderFileList();
 }
@@ -489,11 +486,15 @@ async function handleSubmit() {
   if (state.isUploading) return;
   state.isUploading = true;
 
-  const btn  = document.getElementById('submitBtn');
-  const type = document.getElementById('unitType').value;
-  const num  = document.getElementById('unitNum').value.trim().padStart(3, '0');
-  const prefix = type === 'Trucks' ? 'TR' : 'TL';
-  const folderPath = `${CONFIG.ONEDRIVE_BASE}/${type}/${prefix}-${num}/Maintenance`;
+  const btn = document.getElementById('submitBtn');
+  const unitId = document.getElementById('unitId').value;
+  const svc = getServiceLabel(
+    document.getElementById('serviceType').value,
+    document.getElementById('otherText')?.value || ''
+  );
+  const date = document.getElementById('serviceDate').value;
+  const cost = (document.getElementById('invoiceCost')?.value || '').trim().replace(/,/g, '');
+  const folderPath = buildFolderPath(unitId);
 
   btn.innerHTML = `
     <svg class="progress-ring" width="24" height="24" viewBox="0 0 24 24">
@@ -507,14 +508,32 @@ async function handleSubmit() {
   try {
     await ensureFolder(folderPath);
 
+    let lastFileName = '';
     for (let i = 0; i < files.length; i++) {
-      const name     = getBaseName(i);
+      const name     = getBaseNameFromForm(i);
       const ext      = files[i].name.split('.').pop();
       const fileName = `${name}.${ext}`;
+      lastFileName = fileName;
       await uploadFile(files[i], `${folderPath}/${fileName}`);
 
       const arc = document.getElementById('progressArc');
       if (arc) arc.style.strokeDashoffset = 56.5 * (1 - (i + 1) / files.length);
+    }
+
+    // Append invoice record (non-fatal if this fails)
+    const invoiceRow = {
+      InvoiceId: Date.now().toString(36),
+      UnitId:    unitId,
+      Date:      date,
+      Type:      svc,
+      Cost:      cost,
+      PdfPath:   `${folderPath}/${lastFileName}`,
+    };
+    try {
+      await appendInvoiceRecord(invoiceRow, state.token, state.fleet.invoicesPath);
+    } catch (csvErr) {
+      console.error('CSV append failed:', csvErr);
+      showToast('Uploaded - invoice record could not be saved', 'warning');
     }
 
     showToast(`${files.length} file${files.length > 1 ? 's' : ''} uploaded`, 'success');
@@ -526,9 +545,9 @@ async function handleSubmit() {
 
     setTimeout(() => {
       files = [];
-      ['unitNum','mileage'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      state.scanPages = [];
+      document.getElementById('invoiceCost').value = '';
       document.getElementById('serviceType').value = '';
-      document.getElementById('unitType').value = '';
       document.getElementById('serviceDate').value = new Date().toISOString().split('T')[0];
       state.isUploading = false;
       btn.style.background = '';
@@ -551,8 +570,15 @@ async function handleSubmit() {
 
 // ── OCR pre-fill (only sets empty fields) ─────────────────────────────────────
 function prefillFormFields(fields) {
-  if (fields.unitNumber && !document.getElementById('unitNum').value) {
-    document.getElementById('unitNum').value = fields.unitNumber;
+  if (fields.unitNumber) {
+    const sel = document.getElementById('unitId');
+    if (sel && !sel.value) {
+      // Try to find a unit whose UnitId contains the OCR number
+      const match = state.fleet.units.find(u =>
+        u.UnitId && u.UnitId.includes(fields.unitNumber)
+      );
+      if (match) sel.value = match.UnitId;
+    }
   }
   if (fields.date && !document.getElementById('serviceDate').value) {
     document.getElementById('serviceDate').value = fields.date;
