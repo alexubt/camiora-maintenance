@@ -269,6 +269,47 @@ input:focus, select:focus {
 }
 .file-remove:active { background: var(--bg-3); }
 
+/* ── OCR results banner ── */
+.ocr-results {
+  background: var(--bg-2); border-radius: var(--radius);
+  border: 0.5px solid var(--border); padding: 12px 14px;
+}
+.ocr-results-header {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.ocr-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+.ocr-row + .ocr-row { border-top: 0.5px solid var(--border); }
+.ocr-label {
+  font-size: 11px; font-weight: 600; color: var(--text-2);
+  text-transform: uppercase; letter-spacing: 0.3px;
+  min-width: 52px;
+}
+.ocr-value {
+  flex: 1; font-weight: 500; color: var(--text);
+  font-family: 'SF Mono', 'Menlo', monospace; font-size: 13px;
+}
+.ocr-badge {
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 6px;
+  white-space: nowrap;
+}
+.ocr-badge-ok {
+  background: var(--green-light); color: var(--green-dark);
+}
+.ocr-badge-warn {
+  background: rgba(255,193,7,0.12); color: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  .ocr-badge-warn { background: rgba(255,193,7,0.15); color: #fbbf24; }
+}
+
 /* ── Preview box ── */
 .preview-box {
   background: var(--bg-2); border-radius: var(--radius);
