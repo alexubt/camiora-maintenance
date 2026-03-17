@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in_progress
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-03-17T05:21:50Z"
-last_activity: 2026-03-17 — Completed 04-01 Schedule calculation functions
+status: executing
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-03-17T05:30:34.875Z"
+last_activity: 2026-03-17 — Completed 04-02 Unit detail view
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 12
-  completed_plans: 10
-  percent: 83
+  completed_plans: 11
+  percent: 92
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 4 of 6 (Maintenance Tracking)
-Plan: 1 of 3 in current phase -- COMPLETE
+Plan: 2 of 3 in current phase -- COMPLETE
 Status: In Progress
-Last activity: 2026-03-17 — Completed 04-01 Schedule calculation functions
+Last activity: 2026-03-17 — Completed 04-02 Unit detail view
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [████████░░] 83%
 | Phase 03 P02 | 4min | 3 tasks | 4 files |
 | Phase 03 P03 | 1min | 1 tasks | 0 files |
 | Phase 04 P01 | 2min | 2 tasks | 2 files |
+| Phase 04 P02 | 4min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,9 @@ Recent decisions affecting current work:
 - 04-01: String comparison for YYYY-MM-DD date ordering (no Date object needed for comparison)
 - 04-01: isOverdue returns false on equal-to-due-date (overdue means past, not at)
 - 04-01: currentMiles >= dueMiles triggers overdue (at-limit counts as due)
+- [Phase 04]: On-demand data loading per unit (not at boot) to avoid downloading all CSVs on every hashchange
+- [Phase 04]: Row-update pattern for condition saves (findIndex + mutate, not append) to prevent duplicate rows
+- [Phase 04]: Promise.allSettled for parallel CSV loading with graceful 404 handling per source
 
 ### Pending Todos
 
@@ -104,6 +108,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T05:21:50Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-03-17T05:30:34.873Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None
