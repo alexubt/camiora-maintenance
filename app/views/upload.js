@@ -12,6 +12,12 @@ import { getBaseName, buildFolderPath, getServiceLabel } from '../invoice/naming
 import { appendInvoiceRecord } from '../invoice/record.js';
 import { enqueueUpload } from '../storage/uploadQueue.js';
 
+// Map service type slugs to document type folders
+function getDocType(svc) {
+  if (svc === 'dot-inspection') return 'DOT Inspection';
+  return 'Invoices';
+}
+
 // Module-level state
 let container = null;
 let files = [];
@@ -306,15 +312,15 @@ async function handleCameraCapture(input) {
 
   try {
     const img = await loadImage(file);
-    const blob = await processAndRelease(img);
-    state.scanPages.push(blob);
+    const { scannedBlob, ocrBlob } = await processAndRelease(img);
+    state.scanPages.push(scannedBlob);
     renderScanPages();
 
     // Auto-create PDF immediately (single page scan)
     await buildPdfFromPages();
 
-    // Run OCR on the processed image (non-blocking)
-    runOCR(blob).then(fields => {
+    // Run OCR on the lighter grayscale version (non-blocking)
+    runOCR(ocrBlob).then(fields => {
       if (fields) prefillFormFields(fields);
     }).catch(err => console.error('OCR failed:', err));
   } catch (err) {
@@ -411,7 +417,7 @@ async function buildPdfFromPages() {
     tmp.getContext('2d').drawImage(bmp, 0, 0);
     bmp.close();  // release ImageBitmap
 
-    const imgData = tmp.toDataURL('image/jpeg', 0.5);
+    const imgData = tmp.toDataURL('image/jpeg', 0.8);
     tmp.width = 0;  // release temp canvas memory
     tmp.height = 0;
 
@@ -508,8 +514,9 @@ function updateAll() {
       const extra = files.length > 1 ? ` (+${files.length - 1} more)` : '';
       document.getElementById('previewName').textContent =
         `${getBaseName(unitId, svc, date)}${files.length > 1 ? '-1' : ''}.pdf${extra}`;
+      const docType = getDocType(svc);
       document.getElementById('previewPath').textContent =
-        `OneDrive / ${buildFolderPath(unitId).replace(/\//g, ' / ')} /`;
+        `OneDrive / ${buildFolderPath(unitId, { date, docType }).replace(/\//g, ' / ')} /`;
       preview.style.display = 'block';
     } else {
       preview.style.display = 'none';
@@ -535,7 +542,8 @@ async function handleSubmit() {
   );
   const date = document.getElementById('serviceDate').value;
   const cost = (document.getElementById('invoiceCost')?.value || '').trim().replace(/,/g, '');
-  const folderPath = buildFolderPath(unitId);
+  const docType = getDocType(svc);
+  const folderPath = buildFolderPath(unitId, { date, docType });
 
   // ── Offline guard: queue uploads when no connectivity ──────────────────────
   if (!navigator.onLine) {

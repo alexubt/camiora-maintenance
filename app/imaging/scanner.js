@@ -245,8 +245,8 @@ export function applyAdaptiveThreshold(canvas) {
     gray[i] = Math.round(0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]);
   }
 
-  const blockSize = Math.max(15, Math.round(Math.min(w, h) / 30) | 1);
-  const C = 8;
+  const blockSize = Math.max(25, Math.round(Math.min(w, h) / 16) | 1);
+  const C = 15;
   const thresholded = applyAdaptiveThresholdToArray(gray, w, h, blockSize, C);
 
   // Write back to canvas image data
@@ -270,22 +270,39 @@ export function loadImage(file) {
 }
 
 // ── Process image and release canvas memory ─────────────────────────────────
+// Returns { scannedBlob, ocrBlob } — scannedBlob is B&W for PDF, ocrBlob is
+// grayscale (no threshold) for OCR text extraction.
 export async function processAndRelease(img) {
   const canvas = processImage(img);
-  const blob = await new Promise(resolve =>
+  const scannedBlob = await new Promise(resolve =>
     canvas.toBlob(resolve, 'image/jpeg', 0.85)
   );
   canvas.width = 0;   // release GPU memory
   canvas.height = 0;
-  return blob;
+
+  // Create a lighter version for OCR — just grayscale, no B&W threshold
+  const ocrCanvas = document.createElement('canvas');
+  const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+  ocrCanvas.width = Math.round(img.width * scale);
+  ocrCanvas.height = Math.round(img.height * scale);
+  const ctx = ocrCanvas.getContext('2d');
+  ctx.filter = 'grayscale(1) contrast(1.3)';
+  ctx.drawImage(img, 0, 0, ocrCanvas.width, ocrCanvas.height);
+  const ocrBlob = await new Promise(resolve =>
+    ocrCanvas.toBlob(resolve, 'image/jpeg', 0.85)
+  );
+  ocrCanvas.width = 0;
+  ocrCanvas.height = 0;
+
+  return { scannedBlob, ocrBlob };
 }
 
 // ── Main processing pipeline ──────────────────────────────────────────────────
 export function processImage(img) {
   const work = document.createElement('canvas');
   const wCtx = work.getContext('2d');
-  // Limit to 1200px max dimension — keeps PDF under 500KB per page
-  const scale = Math.min(1, 1200 / Math.max(img.width, img.height));
+  // Limit to 2400px max dimension — good quality for A4/letter invoices
+  const scale = Math.min(1, 2400 / Math.max(img.width, img.height));
   work.width  = Math.round(img.width * scale);
   work.height = Math.round(img.height * scale);
   wCtx.drawImage(img, 0, 0, work.width, work.height);
