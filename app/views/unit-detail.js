@@ -328,14 +328,14 @@ function renderUnitPage(container, unitId, data) {
                 if (s.status === 'overdue') badge = statusBadge('overdue', 'Overdue');
                 else if (s.status === 'ok') badge = statusBadge('ok', 'OK');
                 else badge = statusBadge('unknown', 'N/A');
-                return \`<tr style="border-bottom:1px solid #eee;">
-                  <td style="padding:8px 4px;">\${escapeHtml(ms.label)}</td>
-                  <td style="padding:8px 4px;">\${lastStr}</td>
-                  <td style="padding:8px 4px;">\${intStr}</td>
-                  <td style="padding:8px 4px;">\${nextStr}</td>
-                  <td style="padding:8px 4px;">\${badge}</td>
-                  <td style="padding:8px 4px;"><button data-action="milestone-done" data-milestone-type="\${ms.type}" style="background:none;border:1px solid #999;color:#666;padding:2px 8px;border-radius:6px;font-size:11px;cursor:pointer;">Done</button></td>
-                </tr>\`;
+                return `<tr style="border-bottom:1px solid #eee;">
+                  <td style="padding:8px 4px;">${escapeHtml(ms.label)}</td>
+                  <td style="padding:8px 4px;">${lastStr}</td>
+                  <td style="padding:8px 4px;">${intStr}</td>
+                  <td style="padding:8px 4px;">${nextStr}</td>
+                  <td style="padding:8px 4px;">${badge}</td>
+                  <td style="padding:8px 4px;"><button data-action="milestone-done" data-milestone-type="${ms.type}" style="background:none;border:1px solid #999;color:#666;padding:2px 8px;border-radius:6px;font-size:11px;cursor:pointer;">Done</button></td>
+                </tr>`;
               }).join('')}
             </tbody>
           </table>
