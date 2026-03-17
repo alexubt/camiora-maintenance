@@ -23,9 +23,9 @@
 - [ ] **INV-01**: User can select truck/trailer unit from fleet CSV data
 - [ ] **INV-02**: User can select invoice date via date picker
 - [ ] **INV-03**: User can select maintenance type from presets or enter custom type
-- [ ] **INV-04**: File is auto-named as `UNIT_DATE_TYPE.pdf`
-- [ ] **INV-05**: PDF uploads to per-unit OneDrive folder (`/Fleet/UNIT/Invoices/`)
-- [ ] **INV-06**: Invoice record is appended to fleet CSV after upload (date, type, cost, PDF link)
+- [x] **INV-04**: File is auto-named as `UNIT_DATE_TYPE.pdf`
+- [x] **INV-05**: PDF uploads to per-unit OneDrive folder (`/Fleet/UNIT/Invoices/`)
+- [x] **INV-06**: Invoice record is appended to fleet CSV after upload (date, type, cost, PDF link)
 
 ### Fleet Data
 
@@ -97,9 +97,9 @@
 | INV-01 | Phase 3 | Pending |
 | INV-02 | Phase 3 | Pending |
 | INV-03 | Phase 3 | Pending |
-| INV-04 | Phase 3 | Pending |
-| INV-05 | Phase 3 | Pending |
-| INV-06 | Phase 3 | Pending |
+| INV-04 | Phase 3 | Complete |
+| INV-05 | Phase 3 | Complete |
+| INV-06 | Phase 3 | Complete |
 | FLEET-02 | Phase 4 | Pending |
 | FLEET-03 | Phase 4 | Pending |
 | FLEET-04 | Phase 4 | Pending |

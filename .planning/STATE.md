@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 02-03-PLAN.md (Phase 2 verification checkpoint)
-last_updated: "2026-03-17T04:29:14.587Z"
-last_activity: 2026-03-17 — Completed 02-03 Phase 2 verification checkpoint
+status: in-progress
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-03-17T04:52:00Z"
+last_activity: 2026-03-17 — Completed 03-01 Invoice naming and record modules
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
-  percent: 83
+  total_plans: 9
+  completed_plans: 7
+  percent: 78
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Scan an invoice on a phone, have it auto-named and filed in the right OneDrive folder — saves hundreds of hours of manual data entry
-**Current focus:** Phase 2 complete — ready for Phase 3 (Invoice Workflow)
+**Current focus:** Phase 3 in progress — Invoice Workflow (naming + record modules done)
 
 ## Current Position
 
-Phase: 2 of 6 (Scanner & OCR) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase Complete
-Last activity: 2026-03-17 — Completed 02-03 Phase 2 verification checkpoint
+Phase: 3 of 6 (Invoice Workflow)
+Plan: 1 of 3 in current phase -- COMPLETE
+Status: In Progress
+Last activity: 2026-03-17 — Completed 03-01 Invoice naming and record modules
 
-Progress: [████████░░] 83%
+Progress: [████████░░] 78%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 3.2min
-- Total execution time: 0.32 hours
+- Total plans completed: 7
+- Average duration: 3.1min
+- Total execution time: 0.37 hours
 
 **By Phase:**
 
@@ -53,6 +53,7 @@ Progress: [████████░░] 83%
 *Updated after each plan completion*
 | Phase 02 P02 | 4min | 2 tasks | 7 files |
 | Phase 02 P03 | 1min | 1 tasks | 0 files |
+| Phase 03 P01 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ Recent decisions affecting current work:
 - [Phase 02]: OCR prefills only empty form fields, never overwrites user input
 - [Phase 02]: scanPages stores Blobs not canvases; canvas GPU memory released immediately
 - [Phase 02]: Auto-approved Phase 2 verification checkpoint -- all scanner and OCR requirements confirmed
+- 03-01: DI pattern for csvOps in appendInvoiceRecord -- enables unit testing without fetch mocks
+- 03-01: buildFolderPath accepts optional basePath param for testability
 
 ### Pending Todos
 
@@ -92,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T04:23:52.807Z
-Stopped at: Completed 02-03-PLAN.md (Phase 2 verification checkpoint)
+Last session: 2026-03-17T04:52:00Z
+Stopped at: Completed 03-01-PLAN.md
 Resume file: None
