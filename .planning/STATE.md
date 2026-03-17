@@ -124,6 +124,12 @@ None yet.
 - Token refresh strategy for PKCE flow: accept full redirect vs. introduce MSAL.js — decide in Phase 6 planning
 - OneDrive folder path layout must be locked before Phase 3 (changing it after requires file migration)
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | Maintenance milestones and tire monitor on unit detail page | 2026-03-17 | 50babbe | [1-maintenance-milestones-and-tire-monitor](./quick/1-maintenance-milestones-and-tire-monitor/) |
+
 ## Session Continuity
 
 Last session: 2026-03-17T06:29:39Z
