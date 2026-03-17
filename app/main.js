@@ -8,6 +8,7 @@ import { downloadCSV, parseCSV } from './graph/csv.js';
 import { getCachedFleet, setCachedFleet } from './storage/cache.js';
 import { state } from './state.js';
 import { initRouter } from './router.js';
+import { refreshUnitSelect } from './views/upload.js';
 
 // ── Fleet data loader (background, non-blocking) ─────────────────────────────
 async function loadFleetData() {
@@ -72,6 +73,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Load fleet data in background if authenticated (do not await — let UI render first)
   if (state.token) {
-    loadFleetData();
+    loadFleetData().then(() => {
+      refreshUnitSelect();
+    });
   }
 });
