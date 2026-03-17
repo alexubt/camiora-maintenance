@@ -4,7 +4,7 @@
  */
 
 import { state } from '../state.js';
-import { startLogin, signOut, CONFIG } from '../graph/auth.js';
+import { startLogin, signOut, CONFIG, getValidToken } from '../graph/auth.js';
 import { ensureFolder, uploadFile } from '../graph/files.js';
 import { processAndRelease, loadImage } from '../imaging/scanner.js';
 import { runOCR } from '../imaging/ocr.js';
@@ -551,7 +551,12 @@ async function handleSubmit() {
       PdfPath:   `${folderPath}/${lastFileName}`,
     };
     try {
-      await appendInvoiceRecord(invoiceRow, state.token, state.fleet.invoicesPath);
+      const recToken = await getValidToken();
+      if (!recToken) {
+        showToast('Session expired — please sign in again', 'error');
+        return;
+      }
+      await appendInvoiceRecord(invoiceRow, recToken, state.fleet.invoicesPath);
     } catch (csvErr) {
       console.error('CSV append failed:', csvErr);
       showToast('Uploaded - invoice record could not be saved', 'warning');

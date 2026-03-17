@@ -3,7 +3,7 @@
  * Native ES module — entry point loaded by index.html.
  */
 
-import { loadToken, exchangeCodeForToken, saveToken } from './graph/auth.js';
+import { loadToken, exchangeCodeForToken, saveToken, getValidToken } from './graph/auth.js';
 import { downloadCSV, parseCSV } from './graph/csv.js';
 import { getCachedFleet, setCachedFleet } from './storage/cache.js';
 import { state } from './state.js';
@@ -26,7 +26,8 @@ async function loadFleetData() {
 
   // 2. Try fresh download from OneDrive
   try {
-    const { text, hash } = await downloadCSV(state.fleet.unitsPath, state.token);
+    const token = await getValidToken();
+    const { text, hash } = await downloadCSV(state.fleet.unitsPath, token);
     if (text !== null) {
       const units = parseCSV(text);
       state.fleet.units = units;
@@ -62,7 +63,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     history.replaceState(null, '', window.location.pathname);
     const tokenData = await exchangeCodeForToken(code);
     if (tokenData && tokenData.access_token) {
-      saveToken(tokenData.access_token, tokenData.expires_in);
+      saveToken(tokenData);
     }
   } else {
     loadToken();
