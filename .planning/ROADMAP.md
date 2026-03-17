@@ -47,7 +47,7 @@ Plans:
   3. Capturing and processing multiple invoices in sequence does not crash the app on an older iPhone
   4. OCR extracts text from the scanned image and pre-populates the unit, date, and type fields on the invoice form
   5. User can review and correct any OCR-detected field before submitting the upload
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 02-01-PLAN.md — Extract scanner module, fix black corners, add deskew, upgrade jsPDF, unit tests
@@ -106,7 +106,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/3 | Complete    | 2026-03-17 |
-| 2. Scanner and OCR | 3/3 | Complete | 2026-03-17 |
+| 2. Scanner and OCR | 3/3 | Complete    | 2026-03-17 |
 | 3. Invoice Workflow | 0/TBD | Not started | - |
 | 4. Maintenance Tracking | 0/TBD | Not started | - |
 | 5. Dashboard | 0/TBD | Not started | - |
