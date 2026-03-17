@@ -64,7 +64,12 @@ Plans:
   3. The filename preview shows `UNIT_DATE_TYPE.pdf` before the user taps upload
   4. The PDF uploads to the correct per-unit OneDrive folder (`/Fleet/UNIT/Invoices/`)
   5. An invoice record (date, type, cost, PDF link) is appended to the fleet CSV after successful upload
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — TDD: Extract pure naming functions + invoice record module with tests
+- [ ] 03-02-PLAN.md — Wire upload form: unit select, cost field, handleSubmit, preview
+- [ ] 03-03-PLAN.md — Browser verification checkpoint (human-verify full invoice workflow)
 
 ### Phase 4: Maintenance Tracking
 **Goal**: The fleet team can see each unit's maintenance schedule, condition, and full invoice history in one place
@@ -107,7 +112,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/3 | Complete    | 2026-03-17 |
 | 2. Scanner and OCR | 3/3 | Complete    | 2026-03-17 |
-| 3. Invoice Workflow | 0/TBD | Not started | - |
+| 3. Invoice Workflow | 0/3 | Not started | - |
 | 4. Maintenance Tracking | 0/TBD | Not started | - |
 | 5. Dashboard | 0/TBD | Not started | - |
 | 6. Auth Hardening and PWA Reliability | 0/TBD | Not started | - |
