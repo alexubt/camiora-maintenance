@@ -19,7 +19,7 @@ created: 2026-03-17
 |----------|-------|
 | **Framework** | node:test (built-in) |
 | **Config file** | none |
-| **Quick run command** | `node --test app/views/upload.test.js app/graph/invoices.test.js` |
+| **Quick run command** | `node --test app/views/upload.test.js app/invoice/record.test.js` |
 | **Full suite command** | `node --test app/**/*.test.js` |
 | **Estimated runtime** | ~3 seconds |
 
@@ -27,7 +27,7 @@ created: 2026-03-17
 
 ## Sampling Rate
 
-- **After every task commit:** Run `node --test app/views/upload.test.js app/graph/invoices.test.js`
+- **After every task commit:** Run `node --test app/views/upload.test.js app/invoice/record.test.js`
 - **After every plan wave:** Run `node --test app/**/*.test.js`
 - **Before `/gsd:verify-work`:** Full suite must be green
 - **Max feedback latency:** 5 seconds
@@ -38,12 +38,12 @@ created: 2026-03-17
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 3-01-01 | 01 | 1 | INV-01 | unit | `node --test app/views/upload.test.js` | ❌ W0 | ⬜ pending |
-| 3-01-02 | 01 | 1 | INV-02 | unit | `node --test app/views/upload.test.js` | ❌ W0 | ⬜ pending |
-| 3-01-03 | 01 | 1 | INV-03 | unit | `node --test app/views/upload.test.js` | ❌ W0 | ⬜ pending |
-| 3-01-04 | 01 | 1 | INV-04 | unit | `node --test app/views/upload.test.js` | ❌ W0 | ⬜ pending |
-| 3-01-05 | 01 | 1 | INV-05 | unit | `node --test app/views/upload.test.js` | ❌ W0 | ⬜ pending |
-| 3-02-01 | 02 | 2 | INV-06 | unit | `node --test app/graph/invoices.test.js` | ❌ W0 | ⬜ pending |
+| 3-01-01 | 01 | 1 | INV-04 | unit | `node --test app/invoice/naming.test.js` | plan 01 task 1 | ⬜ pending |
+| 3-01-02 | 01 | 1 | INV-05 | unit | `node --test app/invoice/naming.test.js` | plan 01 task 1 | ⬜ pending |
+| 3-01-03 | 01 | 1 | INV-06 | unit | `node --test app/invoice/record.test.js` | plan 01 task 2 | ⬜ pending |
+| 3-02-01 | 02 | 2 | INV-01 | unit | `node --test app/views/upload.test.js` | plan 02 task 2 | ⬜ pending |
+| 3-02-02 | 02 | 2 | INV-02 | unit | `node --test app/views/upload.test.js` | plan 02 task 2 | ⬜ pending |
+| 3-02-03 | 02 | 2 | INV-03 | unit | `node --test app/views/upload.test.js` | plan 02 task 2 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -51,8 +51,9 @@ created: 2026-03-17
 
 ## Wave 0 Requirements
 
-- [ ] `app/views/upload.test.js` — covers INV-01 through INV-05 (pure function extractions: getBaseName, buildFolderPath, getServiceLabel)
-- [ ] `app/graph/invoices.test.js` — covers INV-06 (appendInvoiceRecord with mocked fetch)
+- [x] `app/invoice/naming.test.js` — covers INV-04, INV-05 (getBaseName, buildFolderPath, getServiceLabel) — created by Plan 01 Task 1
+- [x] `app/invoice/record.test.js` — covers INV-06 (appendInvoiceRecord with mocked csvOps) — created by Plan 01 Task 2
+- [x] `app/views/upload.test.js` — covers INV-01 through INV-03 (naming contract smoke tests from upload view layer) — created by Plan 02 Task 2
 
 ---
 
