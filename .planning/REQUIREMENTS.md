@@ -9,14 +9,14 @@
 
 - [x] **SCAN-01**: Image is converted to B&W with high contrast to look like a scanned document
 - [x] **SCAN-02**: Crooked photos are automatically deskewed/straightened
-- [ ] **SCAN-03**: Canvas memory is released after processing to prevent iOS crashes
+- [x] **SCAN-03**: Canvas memory is released after processing to prevent iOS crashes
 - [x] **SCAN-04**: jsPDF upgraded to 4.2.0 (security fix + better encoding)
 
 ### OCR
 
-- [ ] **OCR-01**: Tesseract.js extracts text from scanned invoice image
-- [ ] **OCR-02**: OCR auto-fills unit number, date, and maintenance type from extracted text
-- [ ] **OCR-03**: User can confirm or correct OCR-detected fields before upload
+- [x] **OCR-01**: Tesseract.js extracts text from scanned invoice image
+- [x] **OCR-02**: OCR auto-fills unit number, date, and maintenance type from extracted text
+- [x] **OCR-03**: User can confirm or correct OCR-detected fields before upload
 
 ### Invoice Upload
 
@@ -89,11 +89,11 @@
 | FLEET-07 | Phase 1 | Complete |
 | SCAN-01 | Phase 2 | Complete |
 | SCAN-02 | Phase 2 | Complete |
-| SCAN-03 | Phase 2 | Pending |
+| SCAN-03 | Phase 2 | Complete |
 | SCAN-04 | Phase 2 | Complete |
-| OCR-01 | Phase 2 | Pending |
-| OCR-02 | Phase 2 | Pending |
-| OCR-03 | Phase 2 | Pending |
+| OCR-01 | Phase 2 | Complete |
+| OCR-02 | Phase 2 | Complete |
+| OCR-03 | Phase 2 | Complete |
 | INV-01 | Phase 3 | Pending |
 | INV-02 | Phase 3 | Pending |
 | INV-03 | Phase 3 | Pending |
