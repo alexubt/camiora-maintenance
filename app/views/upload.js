@@ -18,6 +18,12 @@ function getDocType(svc) {
   return 'Invoices';
 }
 
+// Look up unit Type from fleet roster
+function getUnitType(unitId) {
+  const unit = state.fleet.units.find(u => u.UnitId === unitId);
+  return unit?.Type || '';
+}
+
 // Module-level state
 let container = null;
 let files = [];
@@ -515,8 +521,9 @@ function updateAll() {
       document.getElementById('previewName').textContent =
         `${getBaseName(unitId, svc, date)}${files.length > 1 ? '-1' : ''}.pdf${extra}`;
       const docType = getDocType(svc);
+      const unitType = getUnitType(unitId);
       document.getElementById('previewPath').textContent =
-        `OneDrive / ${buildFolderPath(unitId, { date, docType }).replace(/\//g, ' / ')} /`;
+        `OneDrive / ${buildFolderPath(unitId, { type: unitType, date, docType }).replace(/\//g, ' / ')} /`;
       preview.style.display = 'block';
     } else {
       preview.style.display = 'none';
@@ -543,7 +550,8 @@ async function handleSubmit() {
   const date = document.getElementById('serviceDate').value;
   const cost = (document.getElementById('invoiceCost')?.value || '').trim().replace(/,/g, '');
   const docType = getDocType(svc);
-  const folderPath = buildFolderPath(unitId, { date, docType });
+  const unitType = getUnitType(unitId);
+  const folderPath = buildFolderPath(unitId, { type: unitType, date, docType });
 
   // ── Offline guard: queue uploads when no connectivity ──────────────────────
   if (!navigator.onLine) {

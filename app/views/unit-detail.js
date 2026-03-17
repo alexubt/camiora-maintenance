@@ -228,6 +228,32 @@ export function render(container, params = {}) {
   });
 }
 
+function renderUnitInfo(unitId) {
+  const unit = state.fleet.units.find(u => u.UnitId === unitId);
+  if (!unit) return '<p style="color:var(--text-2);font-size:13px;margin:0 0 20px;">Unit not found in roster</p>';
+
+  const fields = [
+    { label: 'Type', value: unit.Type },
+    { label: 'Make / Model', value: [unit.Make, unit.Model].filter(Boolean).join(' ') || null },
+    { label: 'Year', value: unit.Year },
+    { label: 'VIN', value: unit.VIN },
+    { label: 'Plate', value: unit.PlateNr },
+    { label: 'DOT Expiry', value: unit.DotExpiry },
+  ].filter(f => f.value);
+
+  if (!fields.length) return '<p style="color:var(--text-2);font-size:13px;margin:0 0 20px;">No unit details available</p>';
+
+  return `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px 16px;background:var(--bg-2,#f8f9fa);border-radius:12px;padding:14px 16px;margin:8px 0 20px;">
+      ${fields.map(f => `
+        <div>
+          <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;letter-spacing:0.5px;">${escapeHtml(f.label)}</div>
+          <div style="font-size:14px;font-weight:500;margin-top:2px;">${escapeHtml(f.value)}</div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
 function renderUnitPage(container, unitId, data) {
   const today = new Date().toISOString().split('T')[0];
   const currentMiles = data.condition ? Number(data.condition.CurrentMiles) || 0 : 0;
@@ -237,9 +263,10 @@ function renderUnitPage(container, unitId, data) {
 
   container.innerHTML = `
     <div style="padding:16px;padding-bottom:80px;">
-      <a href="#upload" style="color:var(--green-dark);text-decoration:none;font-size:14px;">&#8592; Back</a>
+      <a href="#dashboard" style="color:var(--green-dark);text-decoration:none;font-size:14px;">&#8592; Back</a>
       <h2 style="margin:12px 0 4px;">${escapeHtml(unitId)}</h2>
-      <p style="color:var(--text-2);font-size:13px;margin:0 0 20px;">Unit detail</p>
+      ${renderUnitInfo(unitId)}
+
 
       <!-- Condition Section -->
       <div style="background:var(--bg-2, #f8f9fa);border-radius:12px;padding:16px;margin-bottom:20px;">

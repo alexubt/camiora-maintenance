@@ -18,17 +18,17 @@ export function getBaseName(unitId, svc, date) {
 }
 
 /**
- * Resolve the unit category folder from its ID prefix.
- * TR/TRK → Trucks, TL/TRL → Trailers, RF/RFR → Reefers, fallback → Other
- * @param {string} unitId - e.g. 'TR-042', 'TL-017', 'RF-003'
- * @returns {string} folder name
+ * Resolve the unit category folder from the unit's Type field.
+ * Normalizes common values to plural folder names.
+ * @param {string} type - e.g. 'Truck', 'Trailer', 'Reefer'
+ * @returns {string} folder name (e.g. 'Trucks', 'Trailers', 'Reefers')
  */
-export function getUnitCategory(unitId) {
-  const prefix = (unitId || '').split('-')[0].toUpperCase();
-  if (['TR', 'TRK'].includes(prefix)) return 'Trucks';
-  if (['TL', 'TRL'].includes(prefix)) return 'Trailers';
-  if (['RF', 'RFR'].includes(prefix)) return 'Reefers';
-  return 'Other';
+export function getUnitCategory(type) {
+  const t = (type || '').trim().toLowerCase();
+  if (t === 'truck' || t === 'trucks') return 'Trucks';
+  if (t === 'trailer' || t === 'trailers') return 'Trailers';
+  if (t === 'reefer' || t === 'reefers') return 'Reefers';
+  return type ? type.trim() : 'Other';
 }
 
 /**
@@ -36,6 +36,7 @@ export function getUnitCategory(unitId) {
  * Structure: Fleet Maintenance/{Category}/{UnitId}/{Year}/{DocType}
  * @param {string} unitId - e.g. 'TR-042'
  * @param {Object} [opts]
+ * @param {string} [opts.type] - unit type from CSV (e.g. 'Truck'), used for category folder
  * @param {string} [opts.date] - ISO date string for year extraction, defaults to current year
  * @param {string} [opts.docType] - document type folder name, defaults to 'Invoices'
  * @param {string} [opts.basePath] - override for testability, defaults to CONFIG.ONEDRIVE_BASE
@@ -43,7 +44,7 @@ export function getUnitCategory(unitId) {
  */
 export function buildFolderPath(unitId, opts = {}) {
   const basePath = opts.basePath || CONFIG.ONEDRIVE_BASE;
-  const category = getUnitCategory(unitId);
+  const category = getUnitCategory(opts.type);
   const year = opts.date ? opts.date.slice(0, 4) : new Date().getFullYear().toString();
   const docType = opts.docType || 'Invoices';
   return `${basePath}/${category}/${unitId}/${year}/${docType}`;

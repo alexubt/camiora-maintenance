@@ -20,7 +20,7 @@ describe('upload view naming contracts', () => {
   });
 
   it('buildFolderPath returns categorized folder structure', () => {
-    assert.equal(buildFolderPath('TR-042', { date: '2026-03-16' }), 'Fleet Maintenance/Trucks/TR-042/2026/Invoices');
+    assert.equal(buildFolderPath('TR-042', { type: 'Truck', date: '2026-03-16' }), 'Fleet Maintenance/Trucks/TR-042/2026/Invoices');
   });
 
   it('getServiceLabel returns select value for non-other', () => {

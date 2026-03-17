@@ -25,70 +25,80 @@ describe('getBaseName', () => {
 });
 
 describe('getUnitCategory', () => {
-  it('maps TR prefix to Trucks', () => {
-    assert.equal(getUnitCategory('TR-042'), 'Trucks');
+  it('maps Truck to Trucks', () => {
+    assert.equal(getUnitCategory('Truck'), 'Trucks');
   });
 
-  it('maps TRK prefix to Trucks', () => {
-    assert.equal(getUnitCategory('TRK-100'), 'Trucks');
+  it('maps Trailer to Trailers', () => {
+    assert.equal(getUnitCategory('Trailer'), 'Trailers');
   });
 
-  it('maps TL prefix to Trailers', () => {
-    assert.equal(getUnitCategory('TL-017'), 'Trailers');
+  it('maps Reefer to Reefers', () => {
+    assert.equal(getUnitCategory('Reefer'), 'Reefers');
   });
 
-  it('maps TRL prefix to Trailers', () => {
-    assert.equal(getUnitCategory('TRL-050'), 'Trailers');
+  it('handles plural form', () => {
+    assert.equal(getUnitCategory('Trucks'), 'Trucks');
   });
 
-  it('maps RF prefix to Reefers', () => {
-    assert.equal(getUnitCategory('RF-003'), 'Reefers');
+  it('is case-insensitive', () => {
+    assert.equal(getUnitCategory('truck'), 'Trucks');
+    assert.equal(getUnitCategory('TRAILER'), 'Trailers');
   });
 
-  it('falls back to Other for unknown prefix', () => {
-    assert.equal(getUnitCategory('XX-001'), 'Other');
+  it('passes through unknown types as-is', () => {
+    assert.equal(getUnitCategory('Van'), 'Van');
+  });
+
+  it('falls back to Other for empty/null', () => {
+    assert.equal(getUnitCategory(''), 'Other');
+    assert.equal(getUnitCategory(null), 'Other');
   });
 });
 
 describe('buildFolderPath', () => {
   it('returns Category/Unit/Year/Invoices structure', () => {
     assert.equal(
-      buildFolderPath('TR-042', { date: '2026-03-16' }),
+      buildFolderPath('TR-042', { type: 'Truck', date: '2026-03-16' }),
       'Fleet Maintenance/Trucks/TR-042/2026/Invoices'
     );
   });
 
   it('categorizes trailers correctly', () => {
     assert.equal(
-      buildFolderPath('TL-017', { date: '2026-03-10' }),
+      buildFolderPath('TL-017', { type: 'Trailer', date: '2026-03-10' }),
       'Fleet Maintenance/Trailers/TL-017/2026/Invoices'
     );
   });
 
   it('categorizes reefers correctly', () => {
     assert.equal(
-      buildFolderPath('RF-003', { date: '2025-12-01' }),
+      buildFolderPath('RF-003', { type: 'Reefer', date: '2025-12-01' }),
       'Fleet Maintenance/Reefers/RF-003/2025/Invoices'
     );
   });
 
   it('accepts custom docType', () => {
     assert.equal(
-      buildFolderPath('TR-042', { date: '2026-03-16', docType: 'DOT Inspection' }),
+      buildFolderPath('TR-042', { type: 'Truck', date: '2026-03-16', docType: 'DOT Inspection' }),
       'Fleet Maintenance/Trucks/TR-042/2026/DOT Inspection'
     );
   });
 
   it('accepts optional basePath override', () => {
     assert.equal(
-      buildFolderPath('TR-042', { date: '2026-01-01', basePath: 'Custom Base' }),
+      buildFolderPath('TR-042', { type: 'Truck', date: '2026-01-01', basePath: 'Custom Base' }),
       'Custom Base/Trucks/TR-042/2026/Invoices'
     );
   });
 
   it('defaults to current year when no date provided', () => {
     const currentYear = new Date().getFullYear().toString();
-    assert.ok(buildFolderPath('TR-042').includes(`/${currentYear}/`));
+    assert.ok(buildFolderPath('TR-042', { type: 'Truck' }).includes(`/${currentYear}/`));
+  });
+
+  it('falls back to Other when no type provided', () => {
+    assert.ok(buildFolderPath('UNIT-1', { date: '2026-01-01' }).includes('/Other/'));
   });
 });
 

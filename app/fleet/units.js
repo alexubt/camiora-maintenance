@@ -6,7 +6,7 @@
 import { downloadCSV, parseCSV, serializeCSV, writeCSVWithLock } from '../graph/csv.js';
 
 /** Column order for units.csv */
-export const UNIT_HEADERS = ['UnitId', 'Type'];
+export const UNIT_HEADERS = ['UnitId', 'Type', 'VIN', 'PlateNr', 'Make', 'Model', 'Year', 'DotExpiry'];
 
 /** Default csv operations — wired to real graph/csv.js functions */
 const defaultCsvOps = { downloadCSV, parseCSV, serializeCSV, writeCSVWithLock };
