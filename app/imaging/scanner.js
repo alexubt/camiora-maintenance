@@ -42,6 +42,394 @@ export function sobelEdges(gray, w, h) {
   return edges;
 }
 
+// ── Sobel with gradient direction (for Hough Transform) ──────────────────────
+export function sobelEdgesWithDirection(gray, w, h) {
+  const magnitude = new Uint8Array(w * h);
+  const direction = new Float32Array(w * h); // radians [0, π)
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const gx =
+        -gray[(y - 1) * w + (x - 1)] + gray[(y - 1) * w + (x + 1)]
+        -2 * gray[y * w + (x - 1)]   + 2 * gray[y * w + (x + 1)]
+        -gray[(y + 1) * w + (x - 1)] + gray[(y + 1) * w + (x + 1)];
+      const gy =
+        -gray[(y - 1) * w + (x - 1)] - 2 * gray[(y - 1) * w + x] - gray[(y - 1) * w + (x + 1)]
+        +gray[(y + 1) * w + (x - 1)] + 2 * gray[(y + 1) * w + x] + gray[(y + 1) * w + (x + 1)];
+      const mag = Math.sqrt(gx * gx + gy * gy);
+      magnitude[y * w + x] = Math.min(255, mag);
+      // Gradient direction — edge direction is perpendicular (rotate 90°)
+      let theta = Math.atan2(gy, gx) + Math.PI / 2;
+      if (theta < 0) theta += Math.PI;
+      if (theta >= Math.PI) theta -= Math.PI;
+      direction[y * w + x] = theta;
+    }
+  }
+  return { magnitude, direction };
+}
+
+// ── Hough Transform ─────────────────────────────────────────────────────────
+// Line parameterization: r = x*cos(θ) + y*sin(θ)
+// Uses gradient direction to constrain voting (5x speedup per article)
+
+/** Precomputed sin/cos lookup table for 180 angle bins (1° resolution) */
+const _sinTable = new Float32Array(180);
+const _cosTable = new Float32Array(180);
+for (let i = 0; i < 180; i++) {
+  const rad = i * Math.PI / 180;
+  _sinTable[i] = Math.sin(rad);
+  _cosTable[i] = Math.cos(rad);
+}
+
+/**
+ * Hough Transform accumulator with gradient-direction-constrained voting.
+ * @param {Uint8Array} magnitude - Sobel edge magnitude
+ * @param {Float32Array} direction - Sobel edge direction (radians, [0, π))
+ * @param {number} w - image width
+ * @param {number} h - image height
+ * @param {number} [magThreshold=30] - minimum edge magnitude to vote
+ * @returns {{ accumulator: Int32Array, numTheta: number, numRho: number, maxRho: number }}
+ */
+export function houghTransform(magnitude, direction, w, h, magThreshold = 30) {
+  const maxRho = Math.ceil(Math.hypot(w, h));
+  const numTheta = 180;
+  const numRho = maxRho * 2; // [-maxRho, +maxRho] mapped to [0, numRho)
+  const accumulator = new Int32Array(numTheta * numRho);
+  const angleWindow = 10; // ±10° around perpendicular to gradient
+
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const idx = y * w + x;
+      const mag = magnitude[idx];
+      if (mag < magThreshold) continue;
+
+      // Edge direction (perpendicular to gradient) in degrees
+      const edgeDeg = Math.round(direction[idx] * 180 / Math.PI);
+
+      // Only vote for angles near the edge direction (±window)
+      for (let dt = -angleWindow; dt <= angleWindow; dt++) {
+        let thetaIdx = edgeDeg + dt;
+        if (thetaIdx < 0) thetaIdx += 180;
+        if (thetaIdx >= 180) thetaIdx -= 180;
+
+        const r = Math.round(x * _cosTable[thetaIdx] + y * _sinTable[thetaIdx]);
+        const rhoIdx = r + maxRho;
+        if (rhoIdx >= 0 && rhoIdx < numRho) {
+          accumulator[thetaIdx * numRho + rhoIdx] += mag;
+        }
+      }
+    }
+  }
+
+  return { accumulator, numTheta, numRho, maxRho };
+}
+
+/**
+ * Non-maximum suppression on Hough accumulator — find top N lines.
+ * @param {{ accumulator: Int32Array, numTheta: number, numRho: number, maxRho: number }} hough
+ * @param {number} [topN=20] - number of lines to return
+ * @param {number} [suppressRadius=10] - suppression window in accumulator space
+ * @returns {Array<{theta: number, rho: number, votes: number}>} Lines sorted by vote count
+ */
+export function houghPeaks(hough, topN = 20, suppressRadius = 10) {
+  const { accumulator, numTheta, numRho, maxRho } = hough;
+  const peaks = [];
+  // Copy accumulator so we can suppress in-place
+  const acc = Int32Array.from(accumulator);
+
+  for (let n = 0; n < topN; n++) {
+    // Find global max
+    let maxVal = 0, maxIdx = 0;
+    for (let i = 0; i < acc.length; i++) {
+      if (acc[i] > maxVal) { maxVal = acc[i]; maxIdx = i; }
+    }
+    if (maxVal === 0) break;
+
+    const thetaIdx = Math.floor(maxIdx / numRho);
+    const rhoIdx = maxIdx % numRho;
+    peaks.push({
+      theta: thetaIdx * Math.PI / 180,
+      rho: rhoIdx - maxRho,
+      votes: maxVal,
+    });
+
+    // Suppress neighborhood
+    for (let dt = -suppressRadius; dt <= suppressRadius; dt++) {
+      for (let dr = -suppressRadius; dr <= suppressRadius; dr++) {
+        let ti = thetaIdx + dt;
+        const ri = rhoIdx + dr;
+        if (ti < 0) ti += numTheta;
+        if (ti >= numTheta) ti -= numTheta;
+        if (ri >= 0 && ri < numRho) {
+          acc[ti * numRho + ri] = 0;
+        }
+      }
+    }
+  }
+
+  return peaks;
+}
+
+/**
+ * Cluster similar lines — merge lines with close (theta, rho) values.
+ * @param {Array<{theta: number, rho: number, votes: number}>} lines
+ * @param {number} [thetaTol=0.1] - angle tolerance in radians (~6°)
+ * @param {number} [rhoTol=20] - distance tolerance in pixels
+ * @returns {Array<{theta: number, rho: number, votes: number}>}
+ */
+export function clusterLines(lines, thetaTol = 0.1, rhoTol = 20) {
+  const used = new Uint8Array(lines.length);
+  const clusters = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    if (used[i]) continue;
+    used[i] = 1;
+    let sumTheta = lines[i].theta * lines[i].votes;
+    let sumRho = lines[i].rho * lines[i].votes;
+    let sumVotes = lines[i].votes;
+
+    for (let j = i + 1; j < lines.length; j++) {
+      if (used[j]) continue;
+      const dTheta = Math.abs(lines[i].theta - lines[j].theta);
+      const dRho = Math.abs(lines[i].rho - lines[j].rho);
+      // Handle theta wrapping near 0/π
+      const dThetaW = Math.min(dTheta, Math.PI - dTheta);
+      if (dThetaW < thetaTol && dRho < rhoTol) {
+        used[j] = 1;
+        sumTheta += lines[j].theta * lines[j].votes;
+        sumRho += lines[j].rho * lines[j].votes;
+        sumVotes += lines[j].votes;
+      }
+    }
+
+    clusters.push({
+      theta: sumTheta / sumVotes,
+      rho: sumRho / sumVotes,
+      votes: sumVotes,
+    });
+  }
+
+  return clusters;
+}
+
+/**
+ * Intersect two Hough lines (theta, rho) → point {x, y}.
+ * Returns null if lines are nearly parallel.
+ */
+export function intersectHoughLines(l1, l2) {
+  const cos1 = Math.cos(l1.theta), sin1 = Math.sin(l1.theta);
+  const cos2 = Math.cos(l2.theta), sin2 = Math.sin(l2.theta);
+  const det = cos1 * sin2 - cos2 * sin1;
+  if (Math.abs(det) < 1e-6) return null; // parallel
+  return {
+    x: (l1.rho * sin2 - l2.rho * sin1) / det,
+    y: (l2.rho * cos1 - l1.rho * cos2) / det,
+  };
+}
+
+/**
+ * Score a quadrilateral for geometric validity as a document.
+ * Higher = better. Returns 0 for invalid quads.
+ * @param {{tl, tr, br, bl}} quad - four corner points
+ * @param {number} w - image width
+ * @param {number} h - image height
+ * @returns {number} score (0 = invalid)
+ */
+export function scoreQuad(quad, w, h) {
+  const { tl, tr, br, bl } = quad;
+  const pts = [tl, tr, br, bl];
+
+  // All corners must be within image bounds (with 10% margin)
+  for (const p of pts) {
+    if (p.x < -w * 0.1 || p.x > w * 1.1 || p.y < -h * 0.1 || p.y > h * 1.1) return 0;
+  }
+
+  // Must be convex (all cross products same sign)
+  const cross = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  const c1 = cross(tl, tr, br);
+  const c2 = cross(tr, br, bl);
+  const c3 = cross(br, bl, tl);
+  const c4 = cross(bl, tl, tr);
+  if (!(c1 < 0 && c2 < 0 && c3 < 0 && c4 < 0) && !(c1 > 0 && c2 > 0 && c3 > 0 && c4 > 0)) return 0;
+
+  // Area check (at least 10% of image, at most 98%)
+  const area = shoelaceArea(pts);
+  const imgArea = w * h;
+  if (area < imgArea * 0.10 || area > imgArea * 0.98) return 0;
+
+  // Aspect ratio penalty — documents are typically between 1:1 and 1:2
+  const widthTop = Math.hypot(tr.x - tl.x, tr.y - tl.y);
+  const widthBot = Math.hypot(br.x - bl.x, br.y - bl.y);
+  const heightL = Math.hypot(bl.x - tl.x, bl.y - tl.y);
+  const heightR = Math.hypot(br.x - tr.x, br.y - tr.y);
+  const avgW = (widthTop + widthBot) / 2;
+  const avgH = (heightL + heightR) / 2;
+  const aspect = Math.max(avgW, avgH) / Math.min(avgW, avgH);
+  if (aspect > 3) return 0; // too elongated
+
+  // Score: area coverage * regularity * aspect bonus
+  const areaCoverage = area / imgArea;
+  const widthRatio = Math.min(widthTop, widthBot) / Math.max(widthTop, widthBot);
+  const heightRatio = Math.min(heightL, heightR) / Math.max(heightL, heightR);
+  const regularity = widthRatio * heightRatio; // 1.0 for perfect rectangles
+
+  return areaCoverage * regularity * (1 / aspect);
+}
+
+/**
+ * Find the best document quadrilateral from Hough lines.
+ * Tries all combinations of 4 lines, computes intersections, scores quads.
+ * @param {Array<{theta: number, rho: number, votes: number}>} lines - clustered Hough lines
+ * @param {number} w - image width
+ * @param {number} h - image height
+ * @returns {{tl, tr, br, bl}|null}
+ */
+export function findBestQuadFromLines(lines, w, h) {
+  if (lines.length < 4) return null;
+
+  // Separate into roughly horizontal and roughly vertical lines
+  // Horizontal: theta near 90° (π/2), Vertical: theta near 0° or 180°
+  const horizontal = [];
+  const vertical = [];
+  for (const l of lines) {
+    const deg = l.theta * 180 / Math.PI;
+    if (deg > 30 && deg < 150) horizontal.push(l);
+    else vertical.push(l);
+  }
+
+  if (horizontal.length < 2 || vertical.length < 2) {
+    // Can't form a quad — fall back to brute force over top lines
+    return _bruteForceQuad(lines.slice(0, 8), w, h);
+  }
+
+  // Sort by votes descending
+  horizontal.sort((a, b) => b.votes - a.votes);
+  vertical.sort((a, b) => b.votes - a.votes);
+
+  // Try combinations of 2 horizontal + 2 vertical (top candidates)
+  let bestQuad = null;
+  let bestScore = 0;
+  const hCandidates = horizontal.slice(0, 4);
+  const vCandidates = vertical.slice(0, 4);
+
+  for (let hi = 0; hi < hCandidates.length; hi++) {
+    for (let hj = hi + 1; hj < hCandidates.length; hj++) {
+      for (let vi = 0; vi < vCandidates.length; vi++) {
+        for (let vj = vi + 1; vj < vCandidates.length; vj++) {
+          const h1 = hCandidates[hi], h2 = hCandidates[hj];
+          const v1 = vCandidates[vi], v2 = vCandidates[vj];
+
+          // 4 intersections
+          const p1 = intersectHoughLines(h1, v1);
+          const p2 = intersectHoughLines(h1, v2);
+          const p3 = intersectHoughLines(h2, v1);
+          const p4 = intersectHoughLines(h2, v2);
+          if (!p1 || !p2 || !p3 || !p4) continue;
+
+          // Assign to TL/TR/BR/BL using sum/diff heuristic
+          const quad = hullToQuad([p1, p2, p3, p4]);
+          if (!quad) continue;
+
+          const score = scoreQuad(quad, w, h);
+          if (score > bestScore) {
+            bestScore = score;
+            bestQuad = quad;
+          }
+        }
+      }
+    }
+  }
+
+  return bestQuad;
+}
+
+/** Brute-force: try all 4-line combos from top lines */
+function _bruteForceQuad(lines, w, h) {
+  let bestQuad = null;
+  let bestScore = 0;
+  const n = lines.length;
+
+  for (let a = 0; a < n; a++) {
+    for (let b = a + 1; b < n; b++) {
+      for (let c = b + 1; c < n; c++) {
+        for (let d = c + 1; d < n; d++) {
+          const four = [lines[a], lines[b], lines[c], lines[d]];
+          // Try all 3 ways to pair 4 lines into 2+2
+          const pairings = [
+            [[four[0], four[1]], [four[2], four[3]]],
+            [[four[0], four[2]], [four[1], four[3]]],
+            [[four[0], four[3]], [four[1], four[2]]],
+          ];
+          for (const [pair1, pair2] of pairings) {
+            const pts = [];
+            for (const l1 of pair1) {
+              for (const l2 of pair2) {
+                const p = intersectHoughLines(l1, l2);
+                if (p) pts.push(p);
+              }
+            }
+            if (pts.length !== 4) continue;
+            const quad = hullToQuad(pts);
+            if (!quad) continue;
+            const score = scoreQuad(quad, w, h);
+            if (score > bestScore) { bestScore = score; bestQuad = quad; }
+          }
+        }
+      }
+    }
+  }
+
+  return bestQuad;
+}
+
+/**
+ * Hough Transform-based document quad detection.
+ * The primary detection method — more robust than edge scanning for
+ * finding straight document boundaries in cluttered backgrounds.
+ * @param {Uint8Array} gray - grayscale image
+ * @param {number} w - image width
+ * @param {number} h - image height
+ * @returns {{tl, tr, br, bl}|null}
+ */
+export function findDocumentQuadHough(gray, w, h) {
+  // Downsample for performance (max 500px dimension)
+  const maxDim = 500;
+  const scale = Math.min(1, maxDim / Math.max(w, h));
+  const sw = Math.round(w * scale);
+  const sh = Math.round(h * scale);
+
+  let smallGray;
+  if (scale < 1) {
+    smallGray = new Uint8Array(sw * sh);
+    const xR = w / sw, yR = h / sh;
+    for (let sy = 0; sy < sh; sy++) {
+      for (let sx = 0; sx < sw; sx++) {
+        smallGray[sy * sw + sx] = gray[Math.min(h - 1, Math.round(sy * yR)) * w + Math.min(w - 1, Math.round(sx * xR))];
+      }
+    }
+  } else {
+    smallGray = gray;
+  }
+
+  // Blur → Sobel with direction → Hough → peaks → cluster → best quad
+  const blurred = gaussianBlur(smallGray, sw, sh);
+  const { magnitude, direction } = sobelEdgesWithDirection(blurred, sw, sh);
+  const hough = houghTransform(magnitude, direction, sw, sh, 30);
+  const peaks = houghPeaks(hough, 20, 10);
+  const lines = clusterLines(peaks, 0.1, 15);
+  const quad = findBestQuadFromLines(lines, sw, sh);
+
+  if (!quad) return null;
+
+  // Scale back to original resolution
+  const inv = 1 / scale;
+  return {
+    tl: { x: quad.tl.x * inv, y: quad.tl.y * inv },
+    tr: { x: quad.tr.x * inv, y: quad.tr.y * inv },
+    br: { x: quad.br.x * inv, y: quad.br.y * inv },
+    bl: { x: quad.bl.x * inv, y: quad.bl.y * inv },
+  };
+}
+
 // ── Find document corners (legacy margin-scan method) ─────────────────────────
 export function findDocumentCorners(edges, w, h) {
   const threshold = 50;
@@ -562,8 +950,10 @@ export function processImage(img) {
   // Step 3: Edge detection (Sobel)
   const edges = sobelEdges(blurred, w, h);
 
-  // Step 4: Find document contour — try robust contour method first, then legacy
-  let corners = findDocumentQuadRobust(edges, w, h) || findDocumentCorners(edges, w, h);
+  // Step 4: Find document contour — Hough (best), contour (fallback), legacy (last resort)
+  let corners = findDocumentQuadHough(gray, w, h)
+    || findDocumentQuadRobust(edges, w, h)
+    || findDocumentCorners(edges, w, h);
 
   // Step 5: Perspective warp if corners found (handles any rotation angle)
   let output;

@@ -13,6 +13,13 @@ import {
   morphDilate,
   floodFillBorder,
   downsampleEdges,
+  sobelEdgesWithDirection,
+  houghTransform,
+  houghPeaks,
+  clusterLines,
+  intersectHoughLines,
+  scoreQuad,
+  findBestQuadFromLines,
 } from './scanner.js';
 
 describe('computeSkewAngle', () => {
@@ -221,5 +228,132 @@ describe('downsampleEdges', () => {
     assert.strictEqual(dst.length, 25);
     // Check that values are sampled from source
     assert.strictEqual(dst[0], src[0]);
+  });
+});
+
+// ── Hough Transform tests ─────────────────────────────────────────────────
+
+describe('sobelEdgesWithDirection', () => {
+  it('returns magnitude and direction arrays of correct size', () => {
+    const w = 20, h = 20;
+    const gray = new Uint8Array(w * h).fill(128);
+    // Create a vertical edge at x=10
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < 10; x++) gray[y * w + x] = 50;
+      for (let x = 10; x < w; x++) gray[y * w + x] = 200;
+    }
+    const { magnitude, direction } = sobelEdgesWithDirection(gray, w, h);
+    assert.strictEqual(magnitude.length, w * h);
+    assert.strictEqual(direction.length, w * h);
+    // Edge pixels near x=10 should have high magnitude
+    assert.ok(magnitude[10 * w + 10] > 50, 'Edge pixel should have high magnitude');
+  });
+
+  it('direction values are in [0, π) range', () => {
+    const w = 10, h = 10;
+    const gray = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) gray[y * w + x] = x * 25;
+    const { direction } = sobelEdgesWithDirection(gray, w, h);
+    for (let i = 0; i < direction.length; i++) {
+      assert.ok(direction[i] >= 0 && direction[i] < Math.PI, `direction[${i}] = ${direction[i]} out of [0, π)`);
+    }
+  });
+});
+
+describe('intersectHoughLines', () => {
+  it('finds intersection of perpendicular lines', () => {
+    // Horizontal line at y=50: theta=π/2, rho=50
+    // Vertical line at x=30: theta=0, rho=30
+    const h = { theta: Math.PI / 2, rho: 50 };
+    const v = { theta: 0, rho: 30 };
+    const p = intersectHoughLines(h, v);
+    assert.ok(p, 'Should find intersection');
+    assert.ok(Math.abs(p.x - 30) < 0.01, `x should be ~30, got ${p.x}`);
+    assert.ok(Math.abs(p.y - 50) < 0.01, `y should be ~50, got ${p.y}`);
+  });
+
+  it('returns null for parallel lines', () => {
+    const l1 = { theta: Math.PI / 4, rho: 10 };
+    const l2 = { theta: Math.PI / 4, rho: 50 };
+    assert.strictEqual(intersectHoughLines(l1, l2), null);
+  });
+});
+
+describe('scoreQuad', () => {
+  it('scores a centered rectangle positively', () => {
+    const quad = {
+      tl: { x: 10, y: 10 }, tr: { x: 90, y: 10 },
+      br: { x: 90, y: 70 }, bl: { x: 10, y: 70 },
+    };
+    const score = scoreQuad(quad, 100, 80);
+    assert.ok(score > 0, `Score should be positive, got ${score}`);
+  });
+
+  it('returns 0 for a tiny quad', () => {
+    const quad = {
+      tl: { x: 45, y: 45 }, tr: { x: 55, y: 45 },
+      br: { x: 55, y: 55 }, bl: { x: 45, y: 55 },
+    };
+    assert.strictEqual(scoreQuad(quad, 100, 100), 0);
+  });
+
+  it('returns 0 for a non-convex quad', () => {
+    const quad = {
+      tl: { x: 0, y: 0 }, tr: { x: 100, y: 0 },
+      br: { x: 50, y: 50 }, bl: { x: 0, y: 100 }, // br is concave
+    };
+    assert.strictEqual(scoreQuad(quad, 100, 100), 0);
+  });
+
+  it('returns 0 for out-of-bounds quad', () => {
+    const quad = {
+      tl: { x: -50, y: -50 }, tr: { x: 50, y: -50 },
+      br: { x: 50, y: 50 }, bl: { x: -50, y: 50 },
+    };
+    assert.strictEqual(scoreQuad(quad, 100, 100), 0);
+  });
+});
+
+describe('clusterLines', () => {
+  it('merges nearby lines into one', () => {
+    const lines = [
+      { theta: 1.57, rho: 50, votes: 100 },
+      { theta: 1.58, rho: 52, votes: 80 },
+      { theta: 0.01, rho: 30, votes: 90 },
+    ];
+    const clustered = clusterLines(lines, 0.1, 20);
+    assert.strictEqual(clustered.length, 2, 'Two similar lines should merge to one');
+  });
+
+  it('keeps distant lines separate', () => {
+    const lines = [
+      { theta: 0, rho: 10, votes: 100 },
+      { theta: Math.PI / 2, rho: 50, votes: 100 },
+    ];
+    const clustered = clusterLines(lines, 0.1, 20);
+    assert.strictEqual(clustered.length, 2);
+  });
+});
+
+describe('findBestQuadFromLines', () => {
+  it('finds a quad from 4 lines forming a rectangle', () => {
+    // Top: y=10, Bottom: y=90, Left: x=10, Right: x=90
+    const lines = [
+      { theta: Math.PI / 2, rho: 10, votes: 100 },  // top (horizontal)
+      { theta: Math.PI / 2, rho: 90, votes: 100 },  // bottom (horizontal)
+      { theta: 0, rho: 10, votes: 100 },             // left (vertical)
+      { theta: 0, rho: 90, votes: 100 },             // right (vertical)
+    ];
+    const quad = findBestQuadFromLines(lines, 100, 100);
+    assert.ok(quad, 'Should find a quad');
+    assert.ok(quad.tl && quad.tr && quad.br && quad.bl, 'Quad should have all 4 corners');
+  });
+
+  it('returns null with fewer than 4 lines', () => {
+    const lines = [
+      { theta: 0, rho: 10, votes: 100 },
+      { theta: Math.PI / 2, rho: 50, votes: 100 },
+    ];
+    assert.strictEqual(findBestQuadFromLines(lines, 100, 100), null);
   });
 });
