@@ -6,7 +6,7 @@
 import { state } from '../state.js';
 import { startLogin, signOut, CONFIG, getValidToken } from '../graph/auth.js';
 import { ensureFolder, uploadFile } from '../graph/files.js';
-import { loadImage } from '../imaging/scanner.js';
+import { processAndRelease, loadImage } from '../imaging/scanner.js';
 import { runOCR } from '../imaging/ocr.js';
 import { getBaseName, buildFolderPath, getServiceLabel } from '../invoice/naming.js';
 import { appendInvoiceRecord } from '../invoice/record.js';
