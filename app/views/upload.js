@@ -6,7 +6,8 @@
 import { state } from '../state.js';
 import { startLogin, signOut, CONFIG, getValidToken } from '../graph/auth.js';
 import { ensureFolder, uploadFile } from '../graph/files.js';
-import { processAndRelease, loadImage } from '../imaging/scanner.js';
+import { loadImage } from '../imaging/scanner.js';
+import { showReviewScreen } from '../imaging/reviewScreen.js';
 import { runOCR } from '../imaging/ocr.js';
 import { getBaseName, buildFolderPath, getServiceLabel } from '../invoice/naming.js';
 import { appendInvoiceRecord } from '../invoice/record.js';
@@ -312,41 +313,92 @@ function renderApp() {
 
 // ── Scanner: open camera ─────────────────────────────────────────────────────
 function openCamera() {
+  if (_reviewActive) return;
   const input = document.getElementById('cameraInput');
   input.value = '';
   input.click();
 }
 
+// Guard flag: prevents scan zone click from re-opening camera during review
+let _reviewActive = false;
+
 async function handleCameraCapture(input) {
   if (!input.files || !input.files[0]) return;
   const file = input.files[0];
 
-  // Show processing state
   const zone = document.getElementById('scanZone');
   const origHTML = zone.innerHTML;
-  zone.innerHTML = `<div class="scan-processing"><div class="scan-spinner"></div><div>Processing…</div></div>`;
+  const origStyles = {
+    pointerEvents: zone.style.pointerEvents,
+    padding: zone.style.padding,
+    border: zone.style.border,
+    background: zone.style.background,
+    cursor: zone.style.cursor,
+  };
+
+  // Show loading while image loads
+  zone.innerHTML = `<div class="scan-processing"><div class="scan-spinner"></div><div>Loading...</div></div>`;
   zone.style.pointerEvents = 'none';
 
   try {
     const img = await loadImage(file);
-    const { scannedBlob, ocrBlob } = await processAndRelease(img);
-    state.scanPages.push(scannedBlob);
-    renderScanPages();
 
-    // Auto-create PDF immediately (single page scan)
+    // Prepare zone for review screen
+    zone.innerHTML = '';
+    zone.style.pointerEvents = '';
+    zone.style.padding = '0';
+    zone.style.border = 'none';
+    zone.style.background = 'none';
+    zone.style.cursor = 'default';
+    _reviewActive = true;
+
+    const result = await showReviewScreen(img, zone);
+
+    // Restore original scan zone
+    _reviewActive = false;
+    zone.innerHTML = origHTML;
+    zone.style.pointerEvents = origStyles.pointerEvents;
+    zone.style.padding = origStyles.padding;
+    zone.style.border = origStyles.border;
+    zone.style.background = origStyles.background;
+    zone.style.cursor = origStyles.cursor;
+
+    if (!result) {
+      // User tapped Retake — re-open camera
+      openCamera();
+      return;
+    }
+
+    // User accepted — store blob and continue normal flow
+    state.scanPages.push(result.blob);
+    renderScanPages();
     await buildPdfFromPages();
 
-    // Run OCR on the lighter grayscale version (non-blocking)
-    runOCR(ocrBlob).then(fields => {
-      if (fields) prefillFormFields(fields);
-    }).catch(err => console.error('OCR failed:', err));
+    // Run OCR on the ocrCanvas (convert to blob first)
+    if (result.ocrCanvas) {
+      const ocrBlob = await new Promise(resolve =>
+        result.ocrCanvas.toBlob(resolve, 'image/jpeg', 0.85)
+      );
+      result.ocrCanvas.width = 0;
+      result.ocrCanvas.height = 0;
+
+      runOCR(ocrBlob).then(fields => {
+        if (fields) prefillFormFields(fields);
+      }).catch(err => console.error('OCR failed:', err));
+    }
   } catch (err) {
     console.error('Scan error:', err);
     showToast('Failed to process image', 'error');
-  }
 
-  zone.innerHTML = origHTML;
-  zone.style.pointerEvents = '';
+    // Restore zone on error
+    _reviewActive = false;
+    zone.innerHTML = origHTML;
+    zone.style.pointerEvents = origStyles.pointerEvents;
+    zone.style.padding = origStyles.padding;
+    zone.style.border = origStyles.border;
+    zone.style.background = origStyles.background;
+    zone.style.cursor = origStyles.cursor;
+  }
 }
 
 // Track blob object URLs so we can revoke them on re-render (prevent memory leaks)
