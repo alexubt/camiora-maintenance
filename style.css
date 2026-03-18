@@ -404,6 +404,42 @@ input:focus, select:focus {
   color: inherit;
 }
 .dash-card:active { background: var(--bg-3); }
+
+/* Category tabs */
+.dash-tab {
+  padding: 6px 14px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 20px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--text-2);
+  transition: all 0.15s;
+}
+.dash-tab-active {
+  background: var(--green-dark);
+  color: #fff;
+  border-color: var(--green-dark);
+}
+
+/* Expanded unit cards with milestone list */
+.dash-grid-expanded {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+.dash-card-expanded {
+  display: block;
+  padding: 14px 16px;
+  background: var(--bg-2, #f8f9fa);
+  border-radius: var(--radius, 12px);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.12s;
+}
+.dash-card-expanded:active { background: var(--bg-3, #e9ecef); }
 .dash-action {
   display: flex;
   align-items: center;

@@ -1,11 +1,12 @@
 /**
- * Dashboard view — action-focused overview with overdue/due-soon alerts and fleet unit cards.
- * Native ES module. Follows unit-detail.js patterns for data loading and rendering.
+ * Dashboard view — category tabs, action alerts, unit cards with milestone summaries.
+ * Native ES module.
  */
 
 import { state } from '../state.js';
 import { downloadCSV, parseCSV } from '../graph/csv.js';
 import { isOverdue, getDueDate, getDueMiles } from '../maintenance/schedule.js';
+import { getMilestonesForCategory, getMilestoneStatus } from '../maintenance/milestones.js';
 import { appendUnit } from '../fleet/units.js';
 import { getValidToken } from '../graph/auth.js';
 import { refreshUnitSelect } from './upload.js';
@@ -13,32 +14,29 @@ import { setCachedFleet } from '../storage/cache.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Escape HTML entities for safe innerHTML use. */
 function escapeHtml(str) {
   if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-/** Compute day difference: positive = days until, negative = days past. */
 function dayDiff(dateA, dateB) {
   const a = new Date(dateA + 'T00:00:00');
   const b = new Date(dateB + 'T00:00:00');
   return Math.round((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-/** Status badge as inline HTML span. */
 function statusBadge(status, label) {
   const colors = {
-    overdue:   'background:#dc3545;color:#fff',
+    overdue: 'background:#dc3545;color:#fff',
     'due-soon': 'background:#ffc107;color:#333',
-    ok:        'background:#28a745;color:#fff',
+    ok: 'background:#28a745;color:#fff',
   };
-  const style = colors[status] || colors.ok;
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;${style}">${escapeHtml(label)}</span>`;
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;${colors[status] || colors.ok}">${escapeHtml(label)}</span>`;
+}
+
+function formatMiles(n) {
+  if (n == null) return '—';
+  return Number(n).toLocaleString() + ' mi';
 }
 
 // ── Data loading ─────────────────────────────────────────────────────────────
@@ -49,18 +47,18 @@ async function loadDashboardData(token) {
     downloadCSV(state.fleet.conditionPath, token),
   ]);
 
-  const maintData = maintResult.status === 'fulfilled' ? maintResult.value : { text: null, hash: null };
-  const condData  = condResult.status === 'fulfilled' ? condResult.value : { text: null, hash: null };
+  const maintData = maintResult.status === 'fulfilled' ? maintResult.value : { text: null };
+  const condData = condResult.status === 'fulfilled' ? condResult.value : { text: null };
 
-  const allMaintenance = parseCSV(maintData.text);
-  const allCondition   = parseCSV(condData.text);
-
-  return { allMaintenance, allCondition };
+  return {
+    allMaintenance: parseCSV(maintData.text),
+    allCondition: parseCSV(condData.text),
+  };
 }
 
-// ── Render ───────────────────────────────────────────────────────────────────
+// ── Render entry point ──────────────────────────────────────────────────────
 
-export function render(container, params = {}) {
+export function render(container) {
   if (!state.token) {
     container.innerHTML = `
       <div style="padding:24px;text-align:center;">
@@ -70,7 +68,6 @@ export function render(container, params = {}) {
     return;
   }
 
-  // Loading skeleton
   container.innerHTML = `
     <div class="header">
       <div class="logo-mark">
@@ -110,29 +107,50 @@ export function render(container, params = {}) {
   loadDashboardData(state.token).then(({ allMaintenance, allCondition }) => {
     renderDashboard(container, allMaintenance, allCondition);
   }).catch(err => {
-    console.error('Dashboard data load failed:', err);
-    container.innerHTML = `
-      <div style="padding:24px;text-align:center;">
-        <p style="color:#dc3545;">Failed to load data: ${escapeHtml(err.message)}</p>
-        <a href="#upload" style="color:var(--green-dark);">Back</a>
-      </div>`;
+    console.error('Dashboard load failed:', err);
+    container.innerHTML += `<div style="padding:24px;text-align:center;color:#dc3545;">Failed to load: ${escapeHtml(err.message)}</div>`;
   });
 }
+
+// ── Main dashboard renderer ─────────────────────────────────────────────────
+
+let _activeTab = null; // persist tab selection across re-renders
 
 function renderDashboard(container, allMaintenance, allCondition) {
   const today = new Date().toISOString().split('T')[0];
   const units = state.fleet.units;
 
-  // Build a map of condition per unit
+  // Build condition map
   const conditionMap = {};
-  for (const c of allCondition) {
-    if (c.UnitId) conditionMap[c.UnitId] = c;
+  for (const c of allCondition) if (c.UnitId) conditionMap[c.UnitId] = c;
+
+  // Build maintenance map per unit
+  const maintMap = {};
+  for (const r of allMaintenance) {
+    if (!r.UnitId) continue;
+    (maintMap[r.UnitId] = maintMap[r.UnitId] || []).push(r);
   }
 
-  // Classify each maintenance record
+  // Discover categories from units (preserve order of first appearance)
+  const categories = [];
+  const categorySet = new Set();
+  for (const u of units) {
+    const cat = (u.Type || 'Other').trim();
+    if (!categorySet.has(cat)) {
+      categorySet.add(cat);
+      categories.push(cat);
+    }
+  }
+
+  // Default to first category or persisted tab
+  if (!_activeTab || !categorySet.has(_activeTab)) {
+    _activeTab = categories[0] || 'All';
+  }
+
+  // Build overdue/due-soon action items (across all categories)
   const overdueItems = [];
   const dueSoonItems = [];
-  const unitStatusMap = {}; // unitId => 'overdue' | 'due-soon' | 'ok'
+  const unitStatusMap = {};
 
   for (const rec of allMaintenance) {
     const unitId = rec.UnitId;
@@ -144,43 +162,23 @@ function renderDashboard(container, allMaintenance, allCondition) {
       overdueItems.push(buildActionItem(rec, unitId, today, currentMiles, 'overdue'));
       unitStatusMap[unitId] = 'overdue';
     } else {
-      // Check "due soon": within 7 days or 500 miles
       const dueDate = getDueDate(rec);
       const dueMiles = getDueMiles(rec);
       let dueSoon = false;
-
-      if (dueDate !== null) {
-        const daysUntil = dayDiff(dueDate, today);
-        if (daysUntil >= 0 && daysUntil <= 7) dueSoon = true;
-      }
-      if (dueMiles !== null && currentMiles > 0) {
-        const milesUntil = dueMiles - currentMiles;
-        if (milesUntil >= 0 && milesUntil <= 500) dueSoon = true;
-      }
-
+      if (dueDate !== null && dayDiff(dueDate, today) >= 0 && dayDiff(dueDate, today) <= 7) dueSoon = true;
+      if (dueMiles !== null && currentMiles > 0 && (dueMiles - currentMiles) >= 0 && (dueMiles - currentMiles) <= 500) dueSoon = true;
       if (dueSoon) {
         dueSoonItems.push(buildActionItem(rec, unitId, today, currentMiles, 'due-soon'));
-        if (unitStatusMap[unitId] !== 'overdue') {
-          unitStatusMap[unitId] = 'due-soon';
-        }
+        if (unitStatusMap[unitId] !== 'overdue') unitStatusMap[unitId] = 'due-soon';
       }
     }
   }
 
-  // Ensure all units have a status entry
   for (const u of units) {
     if (!unitStatusMap[u.UnitId]) unitStatusMap[u.UnitId] = 'ok';
   }
 
-  // Sort units: overdue first, then due-soon, then ok
-  const statusOrder = { overdue: 0, 'due-soon': 1, ok: 2 };
-  const sortedUnits = [...units].sort((a, b) => {
-    const sa = statusOrder[unitStatusMap[a.UnitId] || 'ok'] ?? 2;
-    const sb = statusOrder[unitStatusMap[b.UnitId] || 'ok'] ?? 2;
-    return sa - sb;
-  });
-
-  // Build action items HTML
+  // Action items HTML
   let actionHtml = '';
   if (overdueItems.length === 0 && dueSoonItems.length === 0) {
     actionHtml = `
@@ -188,49 +186,79 @@ function renderDashboard(container, allMaintenance, allCondition) {
         All caught up — no maintenance items need attention.
       </div>`;
   } else {
-    for (const item of overdueItems) {
-      actionHtml += renderActionItem(item, 'overdue');
-    }
-    for (const item of dueSoonItems) {
-      actionHtml += renderActionItem(item, 'due-soon');
-    }
+    for (const item of overdueItems) actionHtml += renderActionItem(item, 'overdue');
+    for (const item of dueSoonItems) actionHtml += renderActionItem(item, 'due-soon');
   }
 
-  // Build unit cards HTML
-  let cardsHtml = '';
-  for (const u of sortedUnits) {
+  // Category tabs HTML
+  const tabsHtml = categories.map(cat => {
+    const count = units.filter(u => (u.Type || 'Other').trim() === cat).length;
+    const active = cat === _activeTab ? ' dash-tab-active' : '';
+    return `<button class="dash-tab${active}" data-category="${escapeHtml(cat)}">${escapeHtml(cat)}s <span style="opacity:0.6;font-size:12px;">(${count})</span></button>`;
+  }).join('');
+
+  // Filter units for active tab
+  const tabUnits = units.filter(u => (u.Type || 'Other').trim() === _activeTab);
+
+  // Sort: overdue first, then due-soon, then ok
+  const statusOrder = { overdue: 0, 'due-soon': 1, ok: 2 };
+  tabUnits.sort((a, b) => (statusOrder[unitStatusMap[a.UnitId] || 'ok'] ?? 2) - (statusOrder[unitStatusMap[b.UnitId] || 'ok'] ?? 2));
+
+  // Unit cards with milestone summaries
+  const cardsHtml = tabUnits.map(u => {
     const st = unitStatusMap[u.UnitId] || 'ok';
-    const badgeLabel = st === 'overdue' ? 'Overdue' : st === 'due-soon' ? 'Due Soon' : 'OK';
-    cardsHtml += `
-      <a href="#unit?id=${encodeURIComponent(u.UnitId)}" class="dash-card">
-        <div>
-          <div style="font-weight:600;font-size:15px;">${escapeHtml(u.UnitId)}</div>
-          <div style="font-size:13px;color:var(--text-2);margin-top:2px;">${escapeHtml(u.Type || '')}</div>
+    const cond = conditionMap[u.UnitId];
+    const currentMiles = cond ? Number(cond.CurrentMiles) || 0 : 0;
+    const unitMaint = maintMap[u.UnitId] || [];
+    const milestones = getMilestonesForCategory(u.Type || 'Other');
+
+    // Build milestone rows
+    let overdueCount = 0;
+    const msRows = milestones.map(ms => {
+      const s = getMilestoneStatus(ms, unitMaint, currentMiles);
+      if (s.status === 'overdue') overdueCount++;
+      const icon = s.status === 'overdue' ? '❌' : s.status === 'ok' ? '✅' : '⬜';
+      let info = '';
+      if (s.nextDueMiles != null) {
+        info = `@ ${Math.round(s.nextDueMiles / 1000)}K`;
+        if (s.status === 'overdue') info += ' (overdue)';
+      } else if (s.status === 'no-interval') {
+        info = s.lastDoneMiles != null ? `done @ ${Math.round(s.lastDoneMiles / 1000)}K` : 'no interval';
+      } else {
+        info = 'not tracked';
+      }
+      return `<div style="display:flex;align-items:center;gap:4px;font-size:12px;line-height:1.6;">
+        <span>${icon}</span>
+        <span style="flex:1;color:var(--text-1);">${escapeHtml(ms.label)}</span>
+        <span style="color:var(--text-2);font-variant-numeric:tabular-nums;">${info}</span>
+      </div>`;
+    }).join('');
+
+    const badgeLabel = overdueCount > 0 ? `${overdueCount} Overdue` : st === 'due-soon' ? 'Due Soon' : 'OK';
+    const badgeStatus = overdueCount > 0 ? 'overdue' : st;
+
+    return `
+      <a href="#unit?id=${encodeURIComponent(u.UnitId)}" class="dash-card-expanded">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div>
+            <div style="font-weight:600;font-size:15px;">${escapeHtml(u.UnitId)}</div>
+            <div style="font-size:12px;color:var(--text-2);">${escapeHtml(u.Type || '')}${currentMiles ? ' · ' + formatMiles(currentMiles) : ''}</div>
+          </div>
+          ${statusBadge(badgeStatus, badgeLabel)}
         </div>
-        ${statusBadge(st, badgeLabel)}
+        <div style="border-top:1px solid var(--border, #eee);padding-top:6px;">
+          ${msRows}
+        </div>
       </a>`;
-  }
+  }).join('');
 
-  const emptyStateHtml = `
-    <div style="text-align:center;padding:24px 0;">
-      <p style="color:var(--text-2);margin:0 0 12px;">Your roster is empty. Add your first unit to get started.</p>
-      <div id="addUnitForm">
-        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-          <input id="newUnitId" type="text" placeholder="Unit ID (e.g. TR-042)" maxlength="30"
-            style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;width:160px;">
-          <select id="newUnitType" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;">
-            <option value="Truck">Truck</option>
-            <option value="Trailer">Trailer</option>
-            <option value="Van">Van</option>
-            <option value="Reefer">Reefer</option>
-            <option value="Other">Other</option>
-          </select>
-          <button id="addUnitBtn" style="padding:8px 16px;background:var(--green-dark);color:#fff;border:none;border-radius:var(--radius);font-size:14px;cursor:pointer;">Add Unit</button>
-        </div>
-        <p id="addUnitError" style="color:#dc3545;font-size:13px;margin:8px 0 0;display:none;"></p>
-      </div>
-    </div>`;
+  // Empty state
+  const emptyHtml = !tabUnits.length ? `
+    <div style="text-align:center;padding:24px 0;color:var(--text-2);">
+      No ${_activeTab ? _activeTab.toLowerCase() + 's' : 'units'} in the fleet yet.
+    </div>` : '';
 
+  // Add unit form
   const addUnitBtnHtml = `
     <div style="margin-top:12px;text-align:center;">
       <button id="showAddUnitBtn" style="padding:6px 14px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;cursor:pointer;color:var(--text-2);">+ Add unit</button>
@@ -288,16 +316,27 @@ function renderDashboard(container, allMaintenance, allCondition) {
     <div style="padding:16px;padding-bottom:80px;">
       ${actionHtml}
 
-      <div style="margin-top:20px;">
-        <h3 style="margin:0 0 10px;font-size:16px;">Fleet <span style="color:var(--text-2);font-weight:400;font-size:14px;">(${units.length})</span></h3>
-        <div class="dash-grid">
-          ${cardsHtml || emptyStateHtml}
+      ${categories.length > 1 ? `
+        <div class="dash-tabs" style="display:flex;gap:6px;margin:16px 0 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
+          ${tabsHtml}
         </div>
-        ${cardsHtml ? addUnitBtnHtml : ''}
+      ` : '<div style="margin-top:16px;"></div>'}
+
+      <div class="dash-grid-expanded">
+        ${cardsHtml || emptyHtml}
       </div>
+      ${addUnitBtnHtml}
     </div>`;
 
-  // Wire up "Add unit" interactions
+  // Wire tab clicks
+  container.querySelectorAll('.dash-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _activeTab = btn.dataset.category;
+      renderDashboard(container, allMaintenance, allCondition);
+    });
+  });
+
+  // Wire add unit
   const showBtn = document.getElementById('showAddUnitBtn');
   if (showBtn) {
     showBtn.addEventListener('click', () => {
@@ -308,18 +347,13 @@ function renderDashboard(container, allMaintenance, allCondition) {
   }
 
   const addBtn = document.getElementById('addUnitBtn');
-  if (addBtn) {
-    addBtn.addEventListener('click', () => handleAddUnit(container, allMaintenance, allCondition));
-  }
+  if (addBtn) addBtn.addEventListener('click', () => handleAddUnit(container, allMaintenance, allCondition));
 
-  // Allow Enter key to submit
   const unitInput = document.getElementById('newUnitId');
-  if (unitInput) {
-    unitInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') handleAddUnit(container, allMaintenance, allCondition);
-    });
-  }
+  if (unitInput) unitInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleAddUnit(container, allMaintenance, allCondition); });
 }
+
+// ── Add unit handler ────────────────────────────────────────────────────────
 
 async function handleAddUnit(container, allMaintenance, allCondition) {
   const idInput = document.getElementById('newUnitId');
@@ -328,20 +362,8 @@ async function handleAddUnit(container, allMaintenance, allCondition) {
   const addBtn = document.getElementById('addUnitBtn');
 
   const unitId = (idInput.value || '').trim();
-  if (!unitId) {
-    errEl.textContent = 'Unit ID is required.';
-    errEl.style.display = '';
-    idInput.focus();
-    return;
-  }
-
-  // Check for duplicate
-  if (state.fleet.units.some(u => u.UnitId === unitId)) {
-    errEl.textContent = `Unit "${unitId}" already exists.`;
-    errEl.style.display = '';
-    idInput.focus();
-    return;
-  }
+  if (!unitId) { errEl.textContent = 'Unit ID is required.'; errEl.style.display = ''; idInput.focus(); return; }
+  if (state.fleet.units.some(u => u.UnitId === unitId)) { errEl.textContent = `Unit "${unitId}" already exists.`; errEl.style.display = ''; return; }
 
   errEl.style.display = 'none';
   addBtn.disabled = true;
@@ -353,55 +375,33 @@ async function handleAddUnit(container, allMaintenance, allCondition) {
     const token = await getValidToken();
     await appendUnit(row, token, state.fleet.unitsPath);
     state.fleet.units.push(row);
-    // Update hash so future writes have correct baseline
-    const { downloadCSV: dl, parseCSV: ps } = await import('../graph/csv.js');
-    const { hash } = await dl(state.fleet.unitsPath, token);
+    const { hash } = await downloadCSV(state.fleet.unitsPath, token);
     state.fleet.unitsHash = hash;
-    // Update cache
     setCachedFleet({ units: state.fleet.units, hash }).catch(() => {});
-    // Refresh upload view dropdown
     refreshUnitSelect();
-    // Re-render dashboard with updated data
+    _activeTab = typeSelect.value; // switch to the new unit's tab
     renderDashboard(container, allMaintenance, allCondition);
   } catch (err) {
-    errEl.textContent = `Failed to add unit: ${err.message}`;
+    errEl.textContent = `Failed: ${err.message}`;
     errEl.style.display = '';
     addBtn.disabled = false;
     addBtn.textContent = 'Add Unit';
   }
 }
 
-// ── Action item builders ─────────────────────────────────────────────────────
+// ── Action item builders ────────────────────────────────────────────────────
 
 function buildActionItem(rec, unitId, today, currentMiles, status) {
   const dueDate = getDueDate(rec);
   const dueMiles = getDueMiles(rec);
-
   let detail = '';
+
   if (status === 'overdue') {
-    if (dueDate !== null && today > dueDate) {
-      const days = dayDiff(today, dueDate);
-      detail = `${days} day${days !== 1 ? 's' : ''} past due`;
-    }
-    if (dueMiles !== null && currentMiles >= dueMiles) {
-      const miles = currentMiles - dueMiles;
-      if (detail) detail += ' / ';
-      detail += `${miles} mi past due`;
-    }
+    if (dueDate !== null && today > dueDate) { const d = dayDiff(today, dueDate); detail = `${d} day${d !== 1 ? 's' : ''} past due`; }
+    if (dueMiles !== null && currentMiles >= dueMiles) { if (detail) detail += ' / '; detail += `${currentMiles - dueMiles} mi past due`; }
   } else {
-    if (dueDate !== null) {
-      const days = dayDiff(dueDate, today);
-      if (days >= 0 && days <= 7) {
-        detail = `due in ${days} day${days !== 1 ? 's' : ''}`;
-      }
-    }
-    if (dueMiles !== null && currentMiles > 0) {
-      const miles = dueMiles - currentMiles;
-      if (miles >= 0 && miles <= 500) {
-        if (detail) detail += ' / ';
-        detail += `${miles} mi remaining`;
-      }
-    }
+    if (dueDate !== null) { const d = dayDiff(dueDate, today); if (d >= 0 && d <= 7) detail = `due in ${d} day${d !== 1 ? 's' : ''}`; }
+    if (dueMiles !== null && currentMiles > 0) { const m = dueMiles - currentMiles; if (m >= 0 && m <= 500) { if (detail) detail += ' / '; detail += `${m} mi remaining`; } }
   }
 
   return { unitId, type: rec.Type || 'maintenance', detail };

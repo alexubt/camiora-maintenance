@@ -19,6 +19,9 @@ export const state = {
     condition:        [],
     conditionPath:    'Fleet Maintenance/data/condition.csv',
     conditionHash:    null,
+    milestoneConfig:      [],   // parsed rows from milestone-config.csv
+    milestoneConfigPath:  'Fleet Maintenance/data/milestone-config.csv',
+    milestoneConfigHash:  null,
   },
   scanPages:    [],   // Blob[] — processed JPEG blobs, NOT canvas objects
   activeUnitId: null,

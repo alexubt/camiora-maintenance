@@ -14,6 +14,7 @@ import { initRouter } from './router.js';
 import { refreshUnitSelect } from './views/upload.js';
 import { initInstallPrompt } from './install.js';
 import { UNIT_HEADERS } from './fleet/units.js';
+import { buildDefaultConfigCSV, MILESTONE_CONFIG_HEADERS } from './maintenance/milestones.js';
 
 // ── Upload queue drain (retries queued offline uploads) ──────────────────────
 async function drainUploadQueue() {
@@ -95,6 +96,34 @@ async function loadFleetData() {
   }
 }
 
+// ── Milestone config loader ──────────────────────────────────────────────────
+async function loadMilestoneConfig() {
+  try {
+    const token = await getValidToken();
+    const { text, hash } = await downloadCSV(state.fleet.milestoneConfigPath, token);
+    if (text !== null) {
+      state.fleet.milestoneConfig = parseCSV(text);
+      state.fleet.milestoneConfigHash = hash;
+    } else {
+      // 404 — seed the default config on OneDrive
+      console.log('milestone-config.csv not found — creating defaults');
+      const defaultCSV = buildDefaultConfigCSV();
+      const encodedPath = state.fleet.milestoneConfigPath.split('/').map(encodeURIComponent).join('/');
+      const putUrl = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodedPath}:/content`;
+      await fetch(putUrl, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain' },
+        body: defaultCSV,
+      });
+      state.fleet.milestoneConfig = parseCSV(defaultCSV);
+      state.fleet.milestoneConfigHash = await hashText(defaultCSV);
+    }
+  } catch (err) {
+    console.warn('Milestone config load failed, using hardcoded defaults:', err.message);
+    state.fleet.milestoneConfig = [];
+  }
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   // Register service worker
@@ -126,7 +155,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Load fleet data in background if authenticated (do not await — let UI render first)
   if (state.token) {
-    loadFleetData().then(() => {
+    Promise.all([loadFleetData(), loadMilestoneConfig()]).then(() => {
       refreshUnitSelect();
       window.dispatchEvent(new HashChangeEvent('hashchange'));
       // Drain any leftover queued uploads from previous sessions

@@ -1,17 +1,46 @@
-/** @module milestones — Milestone definitions, tire positions, and pure calculation helpers */
+/**
+ * @module milestones — Category-aware milestone definitions with OneDrive CSV config support.
+ *
+ * Milestone configs are loaded from milestone-config.csv on OneDrive.
+ * If unavailable, falls back to hardcoded defaults per category.
+ *
+ * CSV columns: Category, Type, Label, IntervalMiles
+ */
 
-// Milestone definitions — each has a type key and interval in miles
-export const MILESTONES = [
-  { type: 'PM', intervalMiles: 30000, label: 'PM' },
-  { type: 'engine-air-filter', intervalMiles: 100000, label: 'Engine Air Filter' },
-  { type: 'dpf-cleaning', intervalMiles: 250000, label: 'DPF Cleaning' },
-  { type: 'transmission-oil', intervalMiles: 250000, label: 'Transmission Oil' },
-  { type: 'differential-oil', intervalMiles: 250000, label: 'Differential Oil' },
-  { type: 'air-dryer', intervalMiles: null, label: 'Air Dryer' },  // interval not set yet
-  { type: 'belts-tensioners', intervalMiles: 250000, label: 'Belts and Tensioners' },
-];
+import { state } from '../state.js';
 
-// Standard truck tire positions
+// ── Default milestone definitions per category (fallback if no CSV config) ──
+
+export const DEFAULT_MILESTONES = {
+  Truck: [
+    { type: 'PM', label: 'PM', intervalMiles: 30000 },
+    { type: 'engine-air-filter', label: 'Engine Air Filter', intervalMiles: 100000 },
+    { type: 'dpf-cleaning', label: 'DPF Cleaning', intervalMiles: 250000 },
+    { type: 'transmission-oil', label: 'Transmission Oil', intervalMiles: 250000 },
+    { type: 'differential-oil', label: 'Differential Oil', intervalMiles: 250000 },
+    { type: 'air-dryer', label: 'Air Dryer', intervalMiles: null },
+    { type: 'belts-tensioners', label: 'Belts & Tensioners', intervalMiles: 250000 },
+  ],
+  Trailer: [
+    { type: 'PM', label: 'PM', intervalMiles: 30000 },
+    { type: 'brake-inspection', label: 'Brake Inspection', intervalMiles: 50000 },
+    { type: 'wheel-bearings', label: 'Wheel Bearings', intervalMiles: 100000 },
+    { type: 'landing-gear', label: 'Landing Gear', intervalMiles: 100000 },
+    { type: 'lights-electrical', label: 'Lights & Electrical', intervalMiles: null },
+    { type: 'suspension', label: 'Suspension', intervalMiles: 150000 },
+  ],
+  Reefer: [
+    { type: 'PM', label: 'PM', intervalMiles: 30000 },
+    { type: 'brake-inspection', label: 'Brake Inspection', intervalMiles: 50000 },
+    { type: 'reefer-service', label: 'Reefer Unit Service', intervalMiles: null },
+    { type: 'wheel-bearings', label: 'Wheel Bearings', intervalMiles: 100000 },
+    { type: 'landing-gear', label: 'Landing Gear', intervalMiles: 100000 },
+    { type: 'lights-electrical', label: 'Lights & Electrical', intervalMiles: null },
+  ],
+};
+
+// ── Standard truck tire positions ───────────────────────────────────────────
+
 export const TIRE_POSITIONS = [
   { key: 'steer-l', label: 'Steer L' },
   { key: 'steer-r', label: 'Steer R' },
@@ -25,10 +54,71 @@ export const TIRE_POSITIONS = [
   { key: 'trailer-2-r', label: 'Trailer 2 R' },
 ];
 
+// ── Get milestones for a category ──────────────────────────────────────────
+
+/**
+ * Get milestone definitions for a given unit category.
+ * Reads from state.fleet.milestoneConfig (loaded from CSV) first,
+ * falls back to DEFAULT_MILESTONES.
+ * @param {string} category - e.g. 'Truck', 'Trailer', 'Reefer'
+ * @returns {Array<{type: string, label: string, intervalMiles: number|null}>}
+ */
+export function getMilestonesForCategory(category) {
+  const normalized = (category || '').trim();
+
+  // Check CSV config first
+  const csvRows = state.fleet.milestoneConfig || [];
+  const matching = csvRows.filter(r =>
+    (r.Category || '').trim().toLowerCase() === normalized.toLowerCase()
+  );
+
+  if (matching.length > 0) {
+    return matching.map(r => ({
+      type: r.Type || '',
+      label: r.Label || r.Type || '',
+      intervalMiles: r.IntervalMiles ? Number(r.IntervalMiles) : null,
+    }));
+  }
+
+  // Fallback to defaults — try exact match, then pluralized
+  if (DEFAULT_MILESTONES[normalized]) return DEFAULT_MILESTONES[normalized];
+
+  // Try singular form (e.g. 'Trucks' → 'Truck')
+  const singular = normalized.replace(/s$/i, '');
+  if (DEFAULT_MILESTONES[singular]) return DEFAULT_MILESTONES[singular];
+
+  // Unknown category — return generic PM only
+  return [{ type: 'PM', label: 'PM', intervalMiles: 30000 }];
+}
+
+// ── Backward compat: MILESTONES constant (defaults to Truck) ───────────────
+
+export const MILESTONES = DEFAULT_MILESTONES.Truck;
+
+// ── Config CSV helpers ─────────────────────────────────────────────────────
+
+export const MILESTONE_CONFIG_HEADERS = ['Category', 'Type', 'Label', 'IntervalMiles'];
+
+/**
+ * Build the default milestone-config.csv content from DEFAULT_MILESTONES.
+ * Used to seed the file on OneDrive if it doesn't exist.
+ */
+export function buildDefaultConfigCSV() {
+  const rows = [];
+  for (const [category, milestones] of Object.entries(DEFAULT_MILESTONES)) {
+    for (const ms of milestones) {
+      rows.push(`${category},${ms.type},${ms.label},${ms.intervalMiles ?? ''}`);
+    }
+  }
+  return MILESTONE_CONFIG_HEADERS.join(',') + '\n' + rows.join('\n');
+}
+
+// ── Status calculation ─────────────────────────────────────────────────────
+
 /**
  * Get the status of a milestone given maintenance records and current mileage.
  * @param {{type: string, intervalMiles: number|null}} milestone
- * @param {Array<{Type: string, LastDoneMiles: string, MaintId: string}>} maintenanceRecords
+ * @param {Array<{Type: string, LastDoneMiles: string}>} maintenanceRecords
  * @param {number} currentMiles
  * @returns {{lastDoneMiles: number|null, nextDueMiles: number|null, overdue: boolean, status: string, record: object|undefined}}
  */
