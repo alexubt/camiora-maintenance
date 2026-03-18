@@ -355,10 +355,10 @@ export function detectDocument(rgba, width, height, maxTries = 3) {
 
     // Scale back to original coordinates
     return {
-      tl: { x: sorted.a.x * scaleFactor, y: sorted.a.y * scaleFactor },
-      tr: { x: sorted.d.x * scaleFactor, y: sorted.d.y * scaleFactor },
-      br: { x: sorted.c.x * scaleFactor, y: sorted.c.y * scaleFactor },
-      bl: { x: sorted.b.x * scaleFactor, y: sorted.b.y * scaleFactor },
+      tl: { x: sorted.b.x * scaleFactor, y: sorted.b.y * scaleFactor },
+      tr: { x: sorted.c.x * scaleFactor, y: sorted.c.y * scaleFactor },
+      br: { x: sorted.d.x * scaleFactor, y: sorted.d.y * scaleFactor },
+      bl: { x: sorted.a.x * scaleFactor, y: sorted.a.y * scaleFactor },
     };
   }
 
