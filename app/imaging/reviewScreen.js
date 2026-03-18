@@ -7,10 +7,7 @@
  */
 
 import {
-  gaussianBlur,
-  sobelEdges,
-  findDocumentQuadRobust,
-  findDocumentCorners,
+  detectDocument,
   perspectiveWarp,
   applyAdaptiveThreshold,
 } from './scanner.js';
@@ -42,19 +39,7 @@ export function showReviewScreen(img, containerEl) {
     wCtx.drawImage(img, 0, 0, workW, workH);
 
     const imageData = wCtx.getImageData(0, 0, workW, workH);
-    const gray = new Uint8Array(workW * workH);
-    for (let i = 0; i < workW * workH; i++) {
-      gray[i] = Math.round(
-        0.299 * imageData.data[i * 4] +
-        0.587 * imageData.data[i * 4 + 1] +
-        0.114 * imageData.data[i * 4 + 2]
-      );
-    }
-    const blurred = gaussianBlur(gray, workW, workH);
-    const edges = sobelEdges(blurred, workW, workH);
-
-    let detectedCorners = findDocumentQuadRobust(edges, workW, workH) ||
-                          findDocumentCorners(edges, workW, workH);
+    let detectedCorners = detectDocument(imageData.data, workW, workH);
 
     // Default to 10% inset if no corners detected
     if (!detectedCorners) {
