@@ -458,6 +458,87 @@ function handleFiles(newFiles) {
   for (const f of newFiles) files.push(f);
   renderFileList();
   updateAll();
+
+  // Run OCR on the first added file (best-effort, non-blocking)
+  const first = newFiles[0];
+  if (first) {
+    ocrFromFile(first).catch(err => console.error('File OCR failed:', err));
+  }
+}
+
+/**
+ * Extract an image from a file (PDF or image) and run OCR on it.
+ * For PDFs: renders the first page via pdf.js.
+ * For images: uses the file directly.
+ */
+async function ocrFromFile(file) {
+  let ocrBlob;
+
+  if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+    ocrBlob = await renderPdfPageToBlob(file);
+  } else if (file.type.startsWith('image/')) {
+    // For image files that weren't camera-captured (e.g. picked from gallery)
+    const img = await loadImage(file);
+    const { ocrBlob: blob } = await processAndRelease(img);
+    ocrBlob = blob;
+  } else {
+    return; // unsupported file type
+  }
+
+  if (!ocrBlob) return;
+  const fields = await runOCR(ocrBlob);
+  if (fields) prefillFormFields(fields);
+}
+
+/**
+ * Render the first page of a PDF to a JPEG blob for OCR.
+ * Lazy-loads pdf.js from CDN on first call.
+ */
+async function renderPdfPageToBlob(file) {
+  // Lazy-load pdf.js
+  if (!window.pdfjsLib) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.min.mjs';
+      s.type = 'module';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+    // pdf.js ES module sets window.pdfjsLib — but as a module import it may not.
+    // Use dynamic import instead:
+  }
+
+  let pdfjsLib = window.pdfjsLib;
+  if (!pdfjsLib) {
+    const mod = await import(/* webpackIgnore: true */ 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.min.mjs');
+    pdfjsLib = mod;
+    // Set worker source
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.worker.min.mjs';
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const page = await pdf.getPage(1);
+
+  // Render at 1.5x scale for good OCR quality without being too large
+  const viewport = page.getViewport({ scale: 1.5 });
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+
+  await page.render({ canvasContext: ctx, viewport }).promise;
+
+  // Convert to grayscale blob for OCR
+  ctx.filter = 'grayscale(1) contrast(1.3)';
+  ctx.drawImage(canvas, 0, 0);
+
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+  canvas.width = 0;
+  canvas.height = 0;
+
+  return blob;
 }
 
 function removeFile(i) {
