@@ -5,6 +5,7 @@
 
 import { state } from '../state.js';
 import { downloadCSV, parseCSV, serializeCSV, writeCSVWithLock } from '../graph/csv.js';
+import { getValidToken } from '../graph/auth.js';
 // schedule.js no longer needed — PM Schedule removed, milestones handle tracking
 import { TIRE_POSITIONS, getMilestonesForCategory, getMilestoneStatus } from '../maintenance/milestones.js';
 
@@ -360,7 +361,7 @@ function renderUnitPage(container, unitId, data) {
                   <td style="padding:8px 4px;">${escapeHtml(inv.Date)}</td>
                   <td style="padding:8px 4px;">${escapeHtml(inv.Type)}</td>
                   <td style="padding:8px 4px;">${inv.Cost ? '$' + escapeHtml(inv.Cost) : '—'}</td>
-                  <td style="padding:8px 4px;">${inv.PdfPath ? `<a href="https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(inv.PdfPath)}:/content" target="_blank" style="color:var(--green-dark);">View</a>` : '—'}</td>
+                  <td style="padding:8px 4px;">${inv.PdfPath ? `<a href="#" data-action="view-pdf" data-pdf-path="${escapeHtml(inv.PdfPath)}" style="color:var(--green-dark);text-decoration:none;">View</a>` : '—'}</td>
                 </tr>`).join('')}
               </tbody>
             </table>
@@ -377,6 +378,12 @@ function renderUnitPage(container, unitId, data) {
   container.addEventListener('click', (e) => {
     const action = e.target.closest('[data-action]')?.dataset?.action;
     if (!action) return;
+
+    if (action === 'view-pdf') {
+      e.preventDefault();
+      const pdfPath = e.target.closest('[data-pdf-path]')?.dataset?.pdfPath;
+      if (pdfPath) handleViewPdf(e.target, pdfPath);
+    }
 
     if (action === 'save-mileage') {
       handleSaveMileage(container, unitId);
@@ -429,6 +436,37 @@ function renderUnitPage(container, unitId, data) {
 }
 
 // ── Action handlers ─────────────────────────────────────────────────────────
+
+async function handleViewPdf(linkEl, pdfPath) {
+  const original = linkEl.textContent;
+  linkEl.textContent = 'Loading...';
+  linkEl.style.pointerEvents = 'none';
+
+  try {
+    const token = await getValidToken();
+    if (!token) throw new Error('Not authenticated');
+    const encodedPath = pdfPath.split('/').map(encodeURIComponent).join('/');
+    const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodedPath}:/content`;
+    const resp = await fetch(url, {
+      headers: { Authorization: 'Bearer ' + token },
+    });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const blob = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
+
+    // Clean up blob URL after a delay (browser keeps it open in the new tab)
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  } catch (err) {
+    console.error('PDF fetch failed:', err);
+    alert('Could not open PDF: ' + err.message);
+  } finally {
+    linkEl.textContent = original;
+    linkEl.style.pointerEvents = '';
+  }
+}
 
 async function handleSaveMileage(container, unitId) {
   const miles = (container.querySelector('#editMiles')?.value || '').trim();
