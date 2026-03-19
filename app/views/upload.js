@@ -237,6 +237,10 @@ function renderApp() {
             Detected from scan
           </div>
           <div id="ocrResultRows"></div>
+          <details id="ocrRawDetails" style="margin-top:8px;display:none;">
+            <summary style="font-size:12px;color:var(--text-2);cursor:pointer;padding:4px 0;">Show raw OCR data</summary>
+            <pre id="ocrRawText" style="margin:8px 0 0;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow-y:auto;color:var(--text);font-family:monospace;"></pre>
+          </details>
         </div>
 
         <div id="previewBox" class="preview-box" style="display:none;">
@@ -729,6 +733,8 @@ async function handleSubmit() {
       document.getElementById('invoiceCost').value = '';
       document.getElementById('serviceType').value = '';
       document.getElementById('serviceDate').value = new Date().toISOString().split('T')[0];
+      const ocrBox = document.getElementById('ocrResults');
+      if (ocrBox) ocrBox.style.display = 'none';
       state.isUploading = false;
       btn.style.background = '';
       updateAll();
@@ -868,6 +874,14 @@ function prefillFormFields(fields) {
   if (ocrBox && ocrRowsEl && rows.length) {
     ocrRowsEl.innerHTML = rows.join('');
     ocrBox.style.display = 'block';
+  }
+
+  // Populate raw OCR data blob
+  const rawDetails = document.getElementById('ocrRawDetails');
+  const rawPre = document.getElementById('ocrRawText');
+  if (rawDetails && rawPre && fields.rawText) {
+    rawPre.textContent = fields.rawText;
+    rawDetails.style.display = 'block';
   }
 
   updateAll();
