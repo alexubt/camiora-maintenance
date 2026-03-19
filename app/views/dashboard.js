@@ -112,6 +112,8 @@ export function render(container) {
 // ── Main dashboard renderer ─────────────────────────────────────────────────
 
 let _activeTab = null; // persist tab selection across re-renders
+let _searchQuery = '';  // persist search across re-renders
+let _statusFilter = 'all'; // persist status filter across re-renders
 
 function renderDashboard(container, allMaintenance, allCondition) {
   const today = new Date().toISOString().split('T')[0];
@@ -178,17 +180,52 @@ function renderDashboard(container, allMaintenance, allCondition) {
     if (!unitStatusMap[u.UnitId]) unitStatusMap[u.UnitId] = 'ok';
   }
 
-  // Action items HTML
+  // Filter action items by active tab (B7)
+  const tabUnitIds = new Set(units.filter(u => (u.Type || 'Other').trim() === _activeTab).map(u => u.UnitId));
+  const tabOverdue = overdueItems.filter(item => tabUnitIds.has(item.unitId));
+  const tabDueSoon = dueSoonItems.filter(item => tabUnitIds.has(item.unitId));
+
+  // Action items HTML (filtered by active tab)
   let actionHtml = '';
-  if (overdueItems.length === 0 && dueSoonItems.length === 0) {
+  if (tabOverdue.length === 0 && tabDueSoon.length === 0) {
     actionHtml = `
       <div style="background:rgba(40,167,69,0.08);border-left:3px solid #28a745;padding:12px 14px;border-radius:var(--radius);margin-bottom:8px;color:#28a745;font-weight:500;">
         All caught up — no maintenance items need attention.
       </div>`;
   } else {
-    for (const item of overdueItems) actionHtml += renderActionItem(item, 'overdue');
-    for (const item of dueSoonItems) actionHtml += renderActionItem(item, 'due-soon');
+    for (const item of tabOverdue) actionHtml += renderActionItem(item, 'overdue');
+    for (const item of tabDueSoon) actionHtml += renderActionItem(item, 'due-soon');
   }
+
+  // Fleet summary bar HTML (B4 — uses unfiltered counts across all categories)
+  const summaryBarHtml = `
+    <div style="display:flex;gap:12px;margin-bottom:12px;">
+      <div style="flex:1;background:var(--bg-2);border-radius:var(--radius);padding:10px 14px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;">${units.length}</div>
+        <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;">Units</div>
+      </div>
+      <div style="flex:1;background:var(--bg-2);border-radius:var(--radius);padding:10px 14px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;color:#dc3545;">${overdueItems.length}</div>
+        <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;">Overdue</div>
+      </div>
+      <div style="flex:1;background:var(--bg-2);border-radius:var(--radius);padding:10px 14px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;color:#ffc107;">${dueSoonItems.length}</div>
+        <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;">Due Soon</div>
+      </div>
+    </div>`;
+
+  // Search and status filter HTML (B6)
+  const searchFilterHtml = `
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <input type="text" id="dashSearch" placeholder="Search by Unit ID..." value="${escapeHtml(_searchQuery)}"
+        style="flex:1;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);">
+      <select id="dashStatusFilter" style="height:40px;padding:0 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--bg);color:var(--text);">
+        <option value="all"${_statusFilter === 'all' ? ' selected' : ''}>All</option>
+        <option value="overdue"${_statusFilter === 'overdue' ? ' selected' : ''}>Overdue</option>
+        <option value="due-soon"${_statusFilter === 'due-soon' ? ' selected' : ''}>Due Soon</option>
+        <option value="ok"${_statusFilter === 'ok' ? ' selected' : ''}>OK</option>
+      </select>
+    </div>`;
 
   // Category tabs HTML
   const tabsHtml = categories.map(cat => {
@@ -200,12 +237,22 @@ function renderDashboard(container, allMaintenance, allCondition) {
   // Filter units for active tab
   const tabUnits = units.filter(u => (u.Type || 'Other').trim() === _activeTab);
 
+  // Apply search and status filters (B6)
+  let filteredUnits = tabUnits;
+  if (_searchQuery) {
+    const q = _searchQuery.toLowerCase();
+    filteredUnits = filteredUnits.filter(u => u.UnitId.toLowerCase().includes(q));
+  }
+  if (_statusFilter !== 'all') {
+    filteredUnits = filteredUnits.filter(u => (unitStatusMap[u.UnitId] || 'ok') === _statusFilter);
+  }
+
   // Sort: overdue first, then due-soon, then ok
   const statusOrder = { overdue: 0, 'due-soon': 1, ok: 2 };
-  tabUnits.sort((a, b) => (statusOrder[unitStatusMap[a.UnitId] || 'ok'] ?? 2) - (statusOrder[unitStatusMap[b.UnitId] || 'ok'] ?? 2));
+  filteredUnits.sort((a, b) => (statusOrder[unitStatusMap[a.UnitId] || 'ok'] ?? 2) - (statusOrder[unitStatusMap[b.UnitId] || 'ok'] ?? 2));
 
   // Unit cards with milestone summaries
-  const cardsHtml = tabUnits.map(u => {
+  const cardsHtml = filteredUnits.map(u => {
     const st = unitStatusMap[u.UnitId] || 'ok';
     const cond = conditionMap[u.UnitId];
     const currentMiles = cond ? Number(cond.CurrentMiles) || 0 : 0;
@@ -255,7 +302,7 @@ function renderDashboard(container, allMaintenance, allCondition) {
   }).join('');
 
   // Empty state
-  const emptyHtml = !tabUnits.length ? `
+  const emptyHtml = !filteredUnits.length ? `
     <div class="empty-state">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M3 17L8 7H16L21 17" stroke-linecap="round" stroke-linejoin="round"/>
@@ -321,6 +368,8 @@ function renderDashboard(container, allMaintenance, allCondition) {
     </nav>
 
     <div style="padding:16px;padding-bottom:80px;">
+      ${summaryBarHtml}
+      ${searchFilterHtml}
       ${actionHtml}
 
       ${categories.length > 1 ? `
@@ -342,6 +391,29 @@ function renderDashboard(container, allMaintenance, allCondition) {
       renderDashboard(container, allMaintenance, allCondition);
     });
   });
+
+  // Wire search input (B6)
+  const searchInput = document.getElementById('dashSearch');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      _searchQuery = e.target.value;
+      renderDashboard(container, allMaintenance, allCondition);
+    });
+    // Restore focus if search was active
+    if (_searchQuery) {
+      searchInput.focus();
+      searchInput.selectionStart = searchInput.selectionEnd = searchInput.value.length;
+    }
+  }
+
+  // Wire status filter (B6)
+  const statusSelect = document.getElementById('dashStatusFilter');
+  if (statusSelect) {
+    statusSelect.addEventListener('change', (e) => {
+      _statusFilter = e.target.value;
+      renderDashboard(container, allMaintenance, allCondition);
+    });
+  }
 
   // Wire add unit
   const showBtn = document.getElementById('showAddUnitBtn');
