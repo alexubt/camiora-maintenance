@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 06-03-PLAN.md (all plans complete)
-last_updated: "2026-03-17T06:24:25.816Z"
+stopped_at: Completed 07-04-PLAN.md
+last_updated: "2026-03-19T20:32:41.459Z"
 last_activity: 2026-03-18 — Completed quick-2 Scanbot-style Scanner Review Screen
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 6
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 20
+  completed_plans: 17
   percent: 100
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Scan an invoice on a phone, have it auto-named and filed in the right OneDrive folder — saves hundreds of hours of manual data entry
-**Current focus:** Phase 6 in progress — Auth hardening and PWA reliability
+**Current focus:** Phase 7 in progress — Dashboard & UX Improvements
 
 ## Current Position
 
-Phase: 6 of 6 (Auth Hardening & PWA Reliability)
-Plan: 3 of 3 in current phase -- COMPLETE
-Status: Complete
-Last activity: 2026-03-18 — Completed quick-2 Scanbot-style Scanner Review Screen
+Phase: 7 of 7 (Dashboard & UX Improvements)
+Plan: 4 of 4 in current phase
+Status: In Progress
+Last activity: 2026-03-19 — Completed 07-04 Fix Invoice PDF Links
 
-Progress: [██████████] 100%
+Progress: [█████████░] 85%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [██████████] 100%
 | Phase 06 P01 | 5min | 2 tasks | 5 files |
 | Phase 06 P02 | 3min | 2 tasks | 5 files |
 | Phase 06 P03 | 5min | 2 tasks | 7 files |
+| Phase 07 P04 | 1min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -117,6 +118,7 @@ Recent decisions affecting current work:
 - 06-03: DI pattern (dbProvider) for queue functions enables unit testing with in-memory mock
 - 06-03: Network TypeError in upload catch also queues -- handles mid-upload connectivity loss
 - 06-03: SW cache bumped to v7 to include new storage modules
+- [Phase 07]: Used getValidToken() for PDF fetch to ensure fresh token on stale pages
 
 ### Pending Todos
 
@@ -137,6 +139,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T19:24:22Z
-Stopped at: Completed quick-2 (Scanbot-style Scanner Review Screen)
+Last session: 2026-03-19T20:32:41.456Z
+Stopped at: Completed 07-04-PLAN.md
 Resume file: None
