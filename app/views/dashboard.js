@@ -26,12 +26,7 @@ function dayDiff(dateA, dateB) {
 }
 
 function statusBadge(status, label) {
-  const colors = {
-    overdue: 'background:#dc3545;color:#fff',
-    'due-soon': 'background:#ffc107;color:#333',
-    ok: 'background:#28a745;color:#fff',
-  };
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;${colors[status] || colors.ok}">${escapeHtml(label)}</span>`;
+  return `<span class="status-badge status-badge--${escapeHtml(status)}">${escapeHtml(label)}</span>`;
 }
 
 function formatMiles(n) {
@@ -101,7 +96,9 @@ export function render(container) {
       </a>
     </nav>
     <div style="padding:16px;">
-      <div style="color:var(--text-2);padding:40px 0;text-align:center;">Loading fleet data...</div>
+      <div class="skeleton skeleton-bar"></div>
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
     </div>`;
 
   loadDashboardData(state.token).then(({ allMaintenance, allCondition }) => {
@@ -218,7 +215,9 @@ function renderDashboard(container, allMaintenance, allCondition) {
     // Build milestone rows
     const msRows = milestones.map(ms => {
       const s = getMilestoneStatus(ms, unitMaint, currentMiles);
-      const icon = s.status === 'overdue' ? '❌' : s.status === 'ok' ? '✅' : '⬜';
+      const statusCls = s.status === 'overdue' ? 'milestone-status--overdue'
+        : s.status === 'ok' ? 'milestone-status--ok' : 'milestone-status--na';
+      const icon = s.status === 'overdue' ? '!' : s.status === 'ok' ? '&#10003;' : '—';
       let info = '';
       if (s.nextDueMiles != null) {
         info = `@ ${Math.round(s.nextDueMiles / 1000)}K`;
@@ -229,8 +228,8 @@ function renderDashboard(container, allMaintenance, allCondition) {
         info = 'not tracked';
       }
       return `<div style="display:flex;align-items:center;gap:4px;font-size:12px;line-height:1.6;">
-        <span>${icon}</span>
-        <span style="flex:1;color:var(--text-1);">${escapeHtml(ms.label)}</span>
+        <span class="milestone-status ${statusCls}">${icon}</span>
+        <span style="flex:1;color:var(--text);">${escapeHtml(ms.label)}</span>
         <span style="color:var(--text-2);font-variant-numeric:tabular-nums;">${info}</span>
       </div>`;
     }).join('');
@@ -257,8 +256,13 @@ function renderDashboard(container, allMaintenance, allCondition) {
 
   // Empty state
   const emptyHtml = !tabUnits.length ? `
-    <div style="text-align:center;padding:24px 0;color:var(--text-2);">
-      No ${_activeTab ? _activeTab.toLowerCase() + 's' : 'units'} in the fleet yet.
+    <div class="empty-state">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M3 17L8 7H16L21 17" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="5.5" cy="18.5" r="2"/><circle cx="18.5" cy="18.5" r="2"/>
+      </svg>
+      <p>No ${_activeTab ? _activeTab.toLowerCase() + 's' : 'units'} in the fleet yet.</p>
+      <button class="empty-state-cta" id="emptyAddUnitBtn">Add your first ${_activeTab ? _activeTab.toLowerCase() : 'unit'}</button>
     </div>` : '';
 
   // Add unit form
@@ -344,6 +348,15 @@ function renderDashboard(container, allMaintenance, allCondition) {
   if (showBtn) {
     showBtn.addEventListener('click', () => {
       showBtn.style.display = 'none';
+      document.getElementById('addUnitForm').style.display = '';
+      document.getElementById('newUnitId').focus();
+    });
+  }
+
+  const emptyAddBtn = document.getElementById('emptyAddUnitBtn');
+  if (emptyAddBtn) {
+    emptyAddBtn.addEventListener('click', () => {
+      if (showBtn) showBtn.style.display = 'none';
       document.getElementById('addUnitForm').style.display = '';
       document.getElementById('newUnitId').focus();
     });
