@@ -410,7 +410,7 @@ input:focus, select:focus {
 /* Category tabs */
 .dash-tab {
   padding: 6px 14px;
-  border: 1px solid var(--border, #ddd);
+  border: 1px solid var(--border);
   border-radius: 20px;
   background: transparent;
   font-size: 13px;
@@ -435,13 +435,13 @@ input:focus, select:focus {
 .dash-card-expanded {
   display: block;
   padding: 14px 16px;
-  background: var(--bg-2, #f8f9fa);
-  border-radius: var(--radius, 12px);
+  background: var(--bg-2);
+  border-radius: var(--radius);
   text-decoration: none;
   color: inherit;
   transition: background 0.12s;
 }
-.dash-card-expanded:active { background: var(--bg-3, #e9ecef); }
+.dash-card-expanded:active { background: var(--bg-3); }
 .dash-action {
   display: flex;
   align-items: center;

@@ -129,7 +129,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 4. Maintenance Tracking | 3/3 | Complete    | 2026-03-17 |
 | 5. Dashboard | 1/1 | Complete    | 2026-03-17 |
 | 6. Auth Hardening and PWA Reliability | 1/3 | Complete    | 2026-03-17 |
-| 7. Dashboard & UX Improvements | 0/4 | In Progress | — |
+| 7. Dashboard & UX Improvements | 0/4 | Complete    | 2026-03-19 |
 
 ### Phase 7: Dashboard & UX Improvements
 
@@ -151,7 +151,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
   12. Units can be deleted from the roster
   13. Mileage can be updated directly from the dashboard card without opening unit detail
   14. Invoice PDF links open correctly with authentication
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 07-01-PLAN.md — CSS/visual foundation: dark mode fix, skeletons, scrollbar, back links, empty states, color-coded milestones

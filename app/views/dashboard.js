@@ -206,11 +206,11 @@ function renderDashboard(container, allMaintenance, allCondition) {
         <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;">Units</div>
       </div>
       <div style="flex:1;background:var(--bg-2);border-radius:var(--radius);padding:10px 14px;text-align:center;">
-        <div style="font-size:20px;font-weight:700;color:#dc3545;">${overdueItems.length}</div>
+        <div class="milestone-status milestone-status--overdue" style="font-size:20px;font-weight:700;">${overdueItems.length}</div>
         <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;">Overdue</div>
       </div>
       <div style="flex:1;background:var(--bg-2);border-radius:var(--radius);padding:10px 14px;text-align:center;">
-        <div style="font-size:20px;font-weight:700;color:#ffc107;">${dueSoonItems.length}</div>
+        <div style="font-size:20px;font-weight:700;color:var(--text-2);">${dueSoonItems.length}</div>
         <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;">Due Soon</div>
       </div>
     </div>`;
