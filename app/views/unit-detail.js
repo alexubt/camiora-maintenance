@@ -6,6 +6,7 @@
 import { state } from '../state.js';
 import { downloadCSV, parseCSV, serializeCSV, writeCSVWithLock } from '../graph/csv.js';
 import { getValidToken } from '../graph/auth.js';
+import { updateUnit, deleteUnit } from '../fleet/units.js';
 // schedule.js no longer needed — PM Schedule removed, milestones handle tracking
 import { TIRE_POSITIONS, getMilestonesForCategory, getMilestoneStatus } from '../maintenance/milestones.js';
 
@@ -252,6 +253,10 @@ function renderUnitInfo(unitId, condition, today) {
 
   return `
     <div class="unit-info-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <strong style="font-size:14px;">Unit Info</strong>
+        <button data-action="edit-unit" style="background:none;border:1px solid var(--green-dark);color:var(--green-dark);padding:2px 10px;border-radius:8px;font-size:12px;cursor:pointer;">Edit</button>
+      </div>
       <div class="unit-info-grid">
         ${fields.map(f => `
           <div>
@@ -259,6 +264,26 @@ function renderUnitInfo(unitId, condition, today) {
             <div class="unit-info-value">${escapeHtml(f.value)}${f.badge ? ' ' + f.badge : ''}</div>
           </div>
         `).join('')}
+      </div>
+      <div id="editUnitForm" style="display:none;margin-top:10px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <input id="editVIN" type="text" placeholder="VIN" value="${escapeHtml(unit.VIN || '')}" maxlength="17"
+            style="grid-column:1/-1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);">
+          <input id="editPlate" type="text" placeholder="Plate #" value="${escapeHtml(unit.PlateNr || '')}" maxlength="15"
+            style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);">
+          <input id="editMake" type="text" placeholder="Make" value="${escapeHtml(unit.Make || '')}" maxlength="30"
+            style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);">
+          <input id="editModel" type="text" placeholder="Model" value="${escapeHtml(unit.Model || '')}" maxlength="30"
+            style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);">
+          <input id="editYear" type="text" placeholder="Year" value="${escapeHtml(unit.Year || '')}" maxlength="4" inputmode="numeric"
+            style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);">
+          <input id="editDotExpiry" type="date" value="${escapeHtml(unit.DotExpiry || '')}"
+            style="grid-column:1/-1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);">
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px;">
+          <button data-action="save-unit-edit" style="background:var(--green-dark);color:#fff;border:none;padding:6px 16px;border-radius:8px;font-size:13px;cursor:pointer;">Save</button>
+          <button data-action="cancel-unit-edit" style="background:none;border:none;color:var(--text-2);padding:6px 10px;font-size:13px;cursor:pointer;">Cancel</button>
+        </div>
       </div>
       <div class="unit-mileage-row">
         <input type="text" id="editMiles" inputmode="numeric" placeholder="Update mileage"
@@ -388,6 +413,11 @@ function renderUnitPage(container, unitId, data) {
         `}
       </div>
 
+      <div style="margin-top:40px;padding-top:16px;border-top:1px solid var(--border);">
+        <p style="font-size:12px;color:var(--text-3);margin-bottom:8px;">Danger Zone</p>
+        <button data-action="delete-unit" style="width:100%;padding:10px;background:none;border:1px solid #dc3545;color:#dc3545;border-radius:8px;font-size:14px;cursor:pointer;">Delete Unit</button>
+      </div>
+
       <div class="toast" id="toast"></div>
     </div>`;
 
@@ -404,6 +434,25 @@ function renderUnitPage(container, unitId, data) {
 
     if (action === 'save-mileage') {
       handleSaveMileage(container, unitId);
+    }
+
+    if (action === 'edit-unit') {
+      const form = container.querySelector('#editUnitForm');
+      if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    }
+
+    if (action === 'cancel-unit-edit') {
+      const form = container.querySelector('#editUnitForm');
+      if (form) form.style.display = 'none';
+    }
+
+    if (action === 'save-unit-edit') {
+      handleSaveUnitEdit(container, unitId);
+    }
+
+    if (action === 'delete-unit') {
+      if (!confirm(`Delete unit "${unitId}"? This will remove all maintenance and condition data for this unit. This cannot be undone.`)) return;
+      handleDeleteUnit(container, unitId);
     }
 
     if (action === 'milestone-done') {
@@ -482,6 +531,47 @@ async function handleViewPdf(linkEl, pdfPath) {
   } finally {
     linkEl.textContent = original;
     linkEl.style.pointerEvents = '';
+  }
+}
+
+async function handleSaveUnitEdit(container, unitId) {
+  const updates = {
+    VIN: (container.querySelector('#editVIN')?.value || '').trim(),
+    PlateNr: (container.querySelector('#editPlate')?.value || '').trim(),
+    Make: (container.querySelector('#editMake')?.value || '').trim(),
+    Model: (container.querySelector('#editModel')?.value || '').trim(),
+    Year: (container.querySelector('#editYear')?.value || '').trim(),
+    DotExpiry: (container.querySelector('#editDotExpiry')?.value || '').trim(),
+  };
+  try {
+    const token = await getValidToken();
+    await updateUnit(unitId, updates, token, state.fleet.unitsPath);
+    // Update local state
+    const local = state.fleet.units.find(u => u.UnitId === unitId);
+    if (local) Object.assign(local, updates);
+    showToast(container, 'Unit updated', 'success');
+    render(container, { id: unitId });
+  } catch (err) {
+    console.error('Unit edit failed:', err);
+    showToast(container, 'Save failed: ' + err.message, 'error');
+  }
+}
+
+async function handleDeleteUnit(container, unitId) {
+  try {
+    const token = await getValidToken();
+    await deleteUnit(unitId, token, {
+      unitsPath: state.fleet.unitsPath,
+      maintenancePath: state.fleet.maintenancePath,
+      conditionPath: state.fleet.conditionPath,
+    });
+    // Remove from local state
+    state.fleet.units = state.fleet.units.filter(u => u.UnitId !== unitId);
+    // Navigate back to dashboard
+    window.location.hash = '#dashboard';
+  } catch (err) {
+    console.error('Delete failed:', err);
+    showToast(container, 'Delete failed: ' + err.message, 'error');
   }
 }
 

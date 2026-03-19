@@ -327,16 +327,30 @@ function renderDashboard(container, allMaintenance, allCondition) {
     <div style="margin-top:12px;text-align:center;">
       <button id="showAddUnitBtn" style="padding:6px 14px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;cursor:pointer;color:var(--text-2);">+ Add unit</button>
       <div id="addUnitForm" style="display:none;margin-top:10px;">
-        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-          <input id="newUnitId" type="text" placeholder="Unit ID (e.g. TR-042)" maxlength="30"
-            style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;width:160px;">
-          <select id="newUnitType" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <input id="newUnitId" type="text" placeholder="Unit ID *" maxlength="30"
+            style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);">
+          <select id="newUnitType" style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);">
             <option value="Truck">Truck</option>
             <option value="Trailer">Trailer</option>
             <option value="Van">Van</option>
             <option value="Reefer">Reefer</option>
             <option value="Other">Other</option>
           </select>
+          <input id="newUnitVIN" type="text" placeholder="VIN" maxlength="17"
+            style="grid-column:1/-1;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);">
+          <input id="newUnitPlate" type="text" placeholder="Plate #" maxlength="15"
+            style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);">
+          <input id="newUnitMake" type="text" placeholder="Make" maxlength="30"
+            style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);">
+          <input id="newUnitModel" type="text" placeholder="Model" maxlength="30"
+            style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);">
+          <input id="newUnitYear" type="text" placeholder="Year" maxlength="4" inputmode="numeric"
+            style="padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);">
+          <input id="newUnitDot" type="date" placeholder="DOT Expiry"
+            style="grid-column:1/-1;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);">
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px;justify-content:center;">
           <button id="addUnitBtn" style="padding:8px 16px;background:var(--green-dark);color:#fff;border:none;border-radius:var(--radius);font-size:14px;cursor:pointer;">Add Unit</button>
         </div>
         <p id="addUnitError" style="color:#dc3545;font-size:13px;margin:8px 0 0;display:none;"></p>
@@ -499,7 +513,16 @@ async function handleAddUnit(container, allMaintenance, allCondition) {
   addBtn.disabled = true;
   addBtn.textContent = 'Adding...';
 
-  const row = { UnitId: unitId, Type: typeSelect.value };
+  const row = {
+    UnitId: unitId,
+    Type: typeSelect.value,
+    VIN: (document.getElementById('newUnitVIN')?.value || '').trim(),
+    PlateNr: (document.getElementById('newUnitPlate')?.value || '').trim(),
+    Make: (document.getElementById('newUnitMake')?.value || '').trim(),
+    Model: (document.getElementById('newUnitModel')?.value || '').trim(),
+    Year: (document.getElementById('newUnitYear')?.value || '').trim(),
+    DotExpiry: (document.getElementById('newUnitDot')?.value || '').trim(),
+  };
 
   try {
     const token = await getValidToken();
