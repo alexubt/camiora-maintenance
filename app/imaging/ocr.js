@@ -18,7 +18,7 @@ let _paddleService = null;
 let _paddleLoadFailed = false;
 let _tesseractWorker = null;
 
-const MODEL_BASE = 'https://cdn.jsdelivr.net/npm/paddleocr@1/assets';
+const MODEL_BASE = 'https://cdn.jsdelivr.net/gh/X3ZvaWQ/paddleocr.js@main/assets';
 const ORT_CDN = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1/dist/ort.min.mjs';
 
 async function loadScript(src) {

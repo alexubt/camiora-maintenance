@@ -494,28 +494,16 @@ async function ocrFromFile(file) {
  * Render the first page of a PDF to a JPEG blob for OCR.
  * Lazy-loads pdf.js from CDN on first call.
  */
+let _pdfjsLib = null;
+
 async function renderPdfPageToBlob(file) {
-  // Lazy-load pdf.js
-  if (!window.pdfjsLib) {
-    await new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.min.mjs';
-      s.type = 'module';
-      s.onload = resolve;
-      s.onerror = reject;
-      document.head.appendChild(s);
-    });
-    // pdf.js ES module sets window.pdfjsLib — but as a module import it may not.
-    // Use dynamic import instead:
+  // Lazy-load pdf.js via dynamic import
+  if (!_pdfjsLib) {
+    _pdfjsLib = await import(/* webpackIgnore: true */ 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.min.mjs');
+    _pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.worker.min.mjs';
   }
 
-  let pdfjsLib = window.pdfjsLib;
-  if (!pdfjsLib) {
-    const mod = await import(/* webpackIgnore: true */ 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.min.mjs');
-    pdfjsLib = mod;
-    // Set worker source
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.worker.min.mjs';
-  }
+  const pdfjsLib = _pdfjsLib;
 
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
