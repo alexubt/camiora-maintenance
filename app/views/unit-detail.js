@@ -525,7 +525,9 @@ async function updateTireDate(tireType, dateStr, unitId, token, maintenancePath,
 
 async function handleMilestoneDone(container, unitId, milestoneType, currentMiles, data) {
   const today = new Date().toISOString().split('T')[0];
-  const milestone = MILESTONES.find(m => m.type === milestoneType);
+  const unit = state.fleet.units.find(u => u.UnitId === unitId);
+  const milestones = getMilestonesForCategory(unit?.Type || 'Other');
+  const milestone = milestones.find(m => m.type === milestoneType);
   const existing = data.maintenance.find(r => r.Type === milestoneType);
 
   try {

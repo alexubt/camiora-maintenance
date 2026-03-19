@@ -378,6 +378,7 @@ input:focus, select:focus {
 .toast.show    { opacity: 1; transform: translateY(0); }
 .toast.success { background: var(--green-dark); }
 .toast.error   { background: #991b1b; }
+.toast.warning { background: #92400e; }
 
 /* ── Upload progress arc ── */
 .progress-ring { transform: rotate(-90deg); }
