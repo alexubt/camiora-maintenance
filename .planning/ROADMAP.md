@@ -129,3 +129,25 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 4. Maintenance Tracking | 3/3 | Complete    | 2026-03-17 |
 | 5. Dashboard | 1/1 | Complete    | 2026-03-17 |
 | 6. Auth Hardening and PWA Reliability | 1/3 | Complete    | 2026-03-17 |
+
+### Phase 7: Dashboard & UX Improvements
+
+**Goal:** The dashboard and unit detail pages are polished, dark-mode-ready, and feature-complete — with fleet summary, search, edit/delete units, working PDF links, and proper loading/empty states
+**Depends on:** Phase 6
+**Requirements:** B4, B5, B6, B7, B8, C9, C10, C11, C12, C13, D14, D15, D16, D17
+**Success Criteria** (what must be TRUE):
+  1. Fleet summary bar shows total units, overdue count, and fleet-wide stats above category tabs
+  2. Milestone rows on cards use color (red/green) not just emoji for overdue/ok
+  3. Dashboard has a search bar that filters units by ID and a status filter
+  4. Action items filter to match the active category tab
+  5. Add Unit form collects all unit attributes (VIN, Plate, Make, Model, Year, DotExpiry)
+  6. Unit detail page uses CSS classes with design tokens — no hardcoded hex colors, works in dark mode
+  7. Loading states show skeleton placeholders instead of plain text
+  8. Category tab scrollbar is hidden on Android
+  9. Back links have tap feedback and a chevron icon
+  10. Empty states have icons and call-to-action buttons
+  11. Unit attributes are editable from the unit detail page
+  12. Units can be deleted from the roster
+  13. Mileage can be updated directly from the dashboard card without opening unit detail
+  14. Invoice PDF links open correctly with authentication
+**Plans**: TBD

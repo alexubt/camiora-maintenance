@@ -66,6 +66,10 @@ Progress: [██████████] 100%
 
 ## Accumulated Context
 
+### Roadmap Evolution
+
+- Phase 7 added: Dashboard & UX Improvements — fleet summary bar, color-coded milestones, search/filter, dark mode fix, expanded add-unit form, edit unit attributes, delete unit, quick mileage update, fix invoice PDF links, loading skeletons, empty state CTAs, tab scrollbar fix, back link feedback
+
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
