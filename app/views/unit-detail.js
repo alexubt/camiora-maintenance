@@ -161,15 +161,7 @@ async function markDoneToday(maintId, currentMiles, token, maintenancePath, csvO
 // ── Badge HTML helpers ────────────────────────────────────────────────────────
 
 function statusBadge(status, label) {
-  const colors = {
-    expired: 'background:#dc3545;color:#fff',
-    overdue: 'background:#dc3545;color:#fff',
-    warning: 'background:#ffc107;color:#333',
-    ok: 'background:#28a745;color:#fff',
-    unknown: 'background:#6c757d;color:#fff',
-  };
-  const style = colors[status] || colors.unknown;
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;${style}">${escapeHtml(label || status)}</span>`;
+  return `<span class="status-badge status-badge--${escapeHtml(status)}">${escapeHtml(label || status)}</span>`;
 }
 
 // ── Render: main entry point ──────────────────────────────────────────────────
@@ -198,9 +190,18 @@ export function render(container, params = {}) {
   // Show loading skeleton
   container.innerHTML = `
     <div style="padding:16px;">
-      <a href="#upload" style="color:var(--green-dark);text-decoration:none;font-size:14px;">&#8592; Back</a>
+      <a href="#dashboard" class="back-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Dashboard
+      </a>
       <h2 style="margin:12px 0 8px;">${escapeHtml(unitId)}</h2>
-      <div style="color:var(--text-2);padding:40px 0;text-align:center;">Loading unit data...</div>
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-bar" style="margin-top:16px;"></div>
+      <div class="skeleton skeleton-row"></div>
+      <div class="skeleton skeleton-row"></div>
+      <div class="skeleton skeleton-row"></div>
     </div>`;
 
   // Load data on-demand
@@ -221,7 +222,12 @@ export function render(container, params = {}) {
     container.innerHTML = `
       <div style="padding:24px;text-align:center;">
         <p style="color:#dc3545;">Failed to load data: ${escapeHtml(err.message)}</p>
-        <a href="#upload" style="color:var(--green-dark);">Back to upload</a>
+        <a href="#dashboard" class="back-link" style="justify-content:center;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Dashboard
+        </a>
       </div>`;
   });
 }
@@ -245,20 +251,19 @@ function renderUnitInfo(unitId, condition, today) {
   ].filter(f => f.value);
 
   return `
-    <div style="background:var(--bg-2,#f8f9fa);border-radius:12px;padding:14px 16px;margin:8px 0 20px;">
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px 16px;">
+    <div class="unit-info-card">
+      <div class="unit-info-grid">
         ${fields.map(f => `
           <div>
-            <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;letter-spacing:0.5px;">${escapeHtml(f.label)}</div>
-            <div style="font-size:14px;font-weight:500;margin-top:2px;">${escapeHtml(f.value)}${f.badge ? ' ' + f.badge : ''}</div>
+            <div class="unit-info-label">${escapeHtml(f.label)}</div>
+            <div class="unit-info-value">${escapeHtml(f.value)}${f.badge ? ' ' + f.badge : ''}</div>
           </div>
         `).join('')}
       </div>
-      <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+      <div class="unit-mileage-row">
         <input type="text" id="editMiles" inputmode="numeric" placeholder="Update mileage"
-          value="${currentMiles || ''}"
-          style="flex:1;padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box;">
-        <button data-action="save-mileage" style="background:var(--green-dark);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:13px;cursor:pointer;">Update</button>
+          value="${currentMiles || ''}">
+        <button data-action="save-mileage">Update</button>
       </div>
     </div>`;
 }
@@ -277,7 +282,12 @@ function renderUnitPage(container, unitId, data) {
 
   container.innerHTML = `
     <div style="padding:16px;padding-bottom:80px;">
-      <a href="#dashboard" style="color:var(--green-dark);text-decoration:none;font-size:14px;">&#8592; Back</a>
+      <a href="#dashboard" class="back-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Dashboard
+      </a>
       <h2 style="margin:12px 0 4px;">${escapeHtml(unitId)}</h2>
       ${renderUnitInfo(unitId, data.condition, today)}
 
@@ -285,15 +295,15 @@ function renderUnitPage(container, unitId, data) {
       <div style="margin-bottom:20px;">
         <h3 style="margin:0 0 8px;font-size:16px;">Maintenance Milestones</h3>
         <div style="overflow-x:auto;">
-          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <table class="milestone-table">
             <thead>
-              <tr style="border-bottom:2px solid #dee2e6;text-align:left;">
-                <th style="padding:8px 4px;">Milestone</th>
-                <th style="padding:8px 4px;">Last Done</th>
-                <th style="padding:8px 4px;">Interval</th>
-                <th style="padding:8px 4px;">Next Due</th>
-                <th style="padding:8px 4px;">Status</th>
-                <th style="padding:8px 4px;"></th>
+              <tr>
+                <th>Milestone</th>
+                <th>Last Done</th>
+                <th>Interval</th>
+                <th>Next Due</th>
+                <th>Status</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -306,13 +316,13 @@ function renderUnitPage(container, unitId, data) {
                 if (s.status === 'overdue') badge = statusBadge('overdue', 'Overdue');
                 else if (s.status === 'ok') badge = statusBadge('ok', 'OK');
                 else badge = statusBadge('unknown', 'N/A');
-                return `<tr style="border-bottom:1px solid #eee;">
-                  <td style="padding:8px 4px;">${escapeHtml(ms.label)}</td>
-                  <td style="padding:8px 4px;">${lastStr}</td>
-                  <td style="padding:8px 4px;">${intStr}</td>
-                  <td style="padding:8px 4px;">${nextStr}</td>
-                  <td style="padding:8px 4px;">${badge}</td>
-                  <td style="padding:8px 4px;"><button data-action="milestone-done" data-milestone-type="${ms.type}" style="background:none;border:1px solid #999;color:#666;padding:2px 8px;border-radius:6px;font-size:11px;cursor:pointer;">Done</button></td>
+                return `<tr>
+                  <td>${escapeHtml(ms.label)}</td>
+                  <td>${lastStr}</td>
+                  <td>${intStr}</td>
+                  <td>${nextStr}</td>
+                  <td>${badge}</td>
+                  <td><button data-action="milestone-done" data-milestone-type="${ms.type}" style="background:none;border:1px solid var(--border);color:var(--text-2);padding:2px 8px;border-radius:6px;font-size:11px;cursor:pointer;">Done</button></td>
                 </tr>`;
               }).join('')}
             </tbody>
@@ -320,16 +330,16 @@ function renderUnitPage(container, unitId, data) {
         </div>
 
         <!-- Notable Mentions -->
-        <div style="margin-top:16px;background:var(--bg-2, #f8f9fa);border-radius:12px;padding:14px 16px;">
+        <div class="notable-card">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <strong style="font-size:14px;">Notable Mentions</strong>
-            <button data-action="edit-notable" style="background:none;border:1px solid var(--green-dark, #28a745);color:var(--green-dark, #28a745);padding:2px 10px;border-radius:8px;font-size:12px;cursor:pointer;">Edit</button>
+            <button data-action="edit-notable" style="background:none;border:1px solid var(--green-dark);color:var(--green-dark);padding:2px 10px;border-radius:8px;font-size:12px;cursor:pointer;">Edit</button>
           </div>
-          <p id="notableText" style="margin:8px 0 0;font-size:13px;color:var(--text-1);">${escapeHtml(data.condition?.TireNotes || '---')}</p>
+          <p id="notableText" style="margin:8px 0 0;font-size:13px;color:var(--text);">${escapeHtml(data.condition?.TireNotes || '---')}</p>
           <div id="notableForm" style="display:none;margin-top:8px;">
-            <textarea id="notableInput" rows="3" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;font-family:inherit;">${escapeHtml(data.condition?.TireNotes || '')}</textarea>
+            <textarea id="notableInput" rows="3">${escapeHtml(data.condition?.TireNotes || '')}</textarea>
             <div style="margin-top:6px;">
-              <button data-action="save-notable" style="background:var(--green-dark, #28a745);color:#fff;border:none;padding:6px 16px;border-radius:8px;font-size:13px;cursor:pointer;">Save</button>
+              <button data-action="save-notable" style="background:var(--green-dark);color:#fff;border:none;padding:6px 16px;border-radius:8px;font-size:13px;cursor:pointer;">Save</button>
               <button data-action="cancel-notable" style="background:none;border:none;color:var(--text-2);padding:6px 10px;font-size:13px;cursor:pointer;">Cancel</button>
             </div>
           </div>
@@ -347,27 +357,34 @@ function renderUnitPage(container, unitId, data) {
         <h3 style="margin:0 0 8px;font-size:16px;">Invoice History</h3>
         ${invoices.length ? `
           <div style="overflow-x:auto;">
-            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <table class="invoice-table">
               <thead>
-                <tr style="border-bottom:2px solid #dee2e6;text-align:left;">
-                  <th style="padding:8px 4px;">Date</th>
-                  <th style="padding:8px 4px;">Type</th>
-                  <th style="padding:8px 4px;">Cost</th>
-                  <th style="padding:8px 4px;">PDF</th>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Cost</th>
+                  <th>PDF</th>
                 </tr>
               </thead>
               <tbody>
-                ${invoices.map(inv => `<tr style="border-bottom:1px solid #eee;">
-                  <td style="padding:8px 4px;">${escapeHtml(inv.Date)}</td>
-                  <td style="padding:8px 4px;">${escapeHtml(inv.Type)}</td>
-                  <td style="padding:8px 4px;">${inv.Cost ? '$' + escapeHtml(inv.Cost) : '—'}</td>
-                  <td style="padding:8px 4px;">${inv.PdfPath ? `<a href="#" data-action="view-pdf" data-pdf-path="${escapeHtml(inv.PdfPath)}" style="color:var(--green-dark);text-decoration:none;">View</a>` : '—'}</td>
+                ${invoices.map(inv => `<tr>
+                  <td>${escapeHtml(inv.Date)}</td>
+                  <td>${escapeHtml(inv.Type)}</td>
+                  <td>${inv.Cost ? '$' + escapeHtml(inv.Cost) : '—'}</td>
+                  <td>${inv.PdfPath ? `<a href="#" data-action="view-pdf" data-pdf-path="${escapeHtml(inv.PdfPath)}" style="color:var(--green-dark);text-decoration:none;">View</a>` : '—'}</td>
                 </tr>`).join('')}
               </tbody>
             </table>
           </div>
         ` : `
-          <p style="color:var(--text-2);">No invoices recorded yet</p>
+          <div class="empty-state">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <p>No invoices recorded yet.</p>
+            <a href="#upload" class="empty-state-cta">Upload an invoice</a>
+          </div>
         `}
       </div>
 
@@ -517,16 +534,16 @@ function renderTireMonitor(maintenance, unitId, unitType) {
         ${g.positions.map(pos => {
           const rec = maintenance.find(r => r.Type === 'tire-' + pos.key);
           const dateStr = rec?.LastDoneDate || null;
-          return `<div style="background:var(--bg-2, #f8f9fa);border-radius:12px;padding:12px 14px;">
+          return `<div style="background:var(--bg-2);border-radius:12px;padding:12px 14px;">
             <div style="display:flex;justify-content:space-between;align-items:center;">
               <strong style="font-size:13px;">${escapeHtml(pos.label)}</strong>
-              <button data-action="update-tire" data-tire-pos="${pos.key}" style="background:none;border:1px solid #999;color:#666;padding:2px 8px;border-radius:6px;font-size:11px;cursor:pointer;">Update</button>
+              <button data-action="update-tire" data-tire-pos="${pos.key}" style="background:none;border:1px solid var(--border);color:var(--text-2);padding:2px 8px;border-radius:6px;font-size:11px;cursor:pointer;">Update</button>
             </div>
             <div style="font-size:12px;color:var(--text-2);margin-top:4px;">${dateStr ? 'Replaced: ' + escapeHtml(dateStr) : 'Not recorded'}</div>
             <div id="tirePicker-${pos.key}" style="display:none;margin-top:8px;">
-              <input type="date" class="tire-date-input" data-tire-pos="${pos.key}" value="${new Date().toISOString().split('T')[0]}" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:13px;">
+              <input type="date" class="tire-date-input" data-tire-pos="${pos.key}" value="${new Date().toISOString().split('T')[0]}" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:8px;box-sizing:border-box;font-size:13px;background:var(--bg);color:var(--text);">
               <div style="margin-top:6px;display:flex;gap:6px;">
-                <button data-action="save-tire-date" data-tire-pos="${pos.key}" style="background:var(--green-dark, #28a745);color:#fff;border:none;padding:4px 12px;border-radius:8px;font-size:12px;cursor:pointer;">Save</button>
+                <button data-action="save-tire-date" data-tire-pos="${pos.key}" style="background:var(--green-dark);color:#fff;border:none;padding:4px 12px;border-radius:8px;font-size:12px;cursor:pointer;">Save</button>
                 <button data-action="cancel-tire-date" data-tire-pos="${pos.key}" style="background:none;border:none;color:var(--text-2);padding:4px 8px;font-size:12px;cursor:pointer;">Cancel</button>
               </div>
             </div>

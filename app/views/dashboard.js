@@ -248,7 +248,7 @@ function renderDashboard(container, allMaintenance, allCondition) {
           </div>
           ${statusBadge(badgeStatus, badgeLabel)}
         </div>
-        <div style="border-top:1px solid var(--border, #eee);padding-top:6px;">
+        <div style="border-top:1px solid var(--border);padding-top:6px;">
           ${msRows}
         </div>
       </a>`;
