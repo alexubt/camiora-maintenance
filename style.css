@@ -308,6 +308,7 @@ input:focus, select:focus {
 }
 @media (prefers-color-scheme: dark) {
   .ocr-badge-warn { background: rgba(255,193,7,0.15); color: #fbbf24; }
+  .status-badge--due-soon, .status-badge--warning { color: #1a1a1a; }
 }
 
 /* ── Preview box ── */
@@ -557,3 +558,101 @@ input:focus, select:focus {
   font-family: inherit; touch-action: manipulation;
 }
 .review-accept-btn:active { background: var(--green-dark); }
+
+/* ── Status badges (C9) ── */
+.status-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600; }
+.status-badge--overdue { background: #dc3545; color: #fff; }
+.status-badge--expired { background: #dc3545; color: #fff; }
+.status-badge--due-soon { background: #ffc107; color: #333; }
+.status-badge--warning { background: #ffc107; color: #333; }
+.status-badge--ok { background: #28a745; color: #fff; }
+.status-badge--unknown { background: #6c757d; color: #fff; }
+
+/* ── Milestone row colors (B5) ── */
+.milestone-status { font-size: 12px; font-weight: 600; }
+.milestone-status--overdue { color: #dc3545; }
+.milestone-status--ok { color: #28a745; }
+.milestone-status--na { color: var(--text-3); }
+
+/* ── Loading skeletons (C10) ── */
+.skeleton { background: var(--bg-3); border-radius: var(--radius); position: relative; overflow: hidden; }
+.skeleton::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 0%, var(--bg-2) 50%, transparent 100%);
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.skeleton-card { height: 120px; margin-bottom: 12px; }
+.skeleton-row { height: 40px; margin-bottom: 8px; }
+.skeleton-bar { height: 20px; width: 60%; margin-bottom: 8px; }
+
+/* ── Tab scrollbar hide (C11) ── */
+.dash-tabs { scrollbar-width: none; }
+.dash-tabs::-webkit-scrollbar { display: none; }
+
+/* ── Back link (C12) ── */
+.back-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--green-dark); text-decoration: none; font-size: 14px;
+  padding: 8px 12px 8px 8px; border-radius: 8px;
+  transition: background 0.12s, opacity 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.back-link:active { opacity: 0.6; background: var(--bg-3); }
+.back-link svg { flex-shrink: 0; }
+
+/* ── Empty states (C13) ── */
+.empty-state { text-align: center; padding: 32px 16px; color: var(--text-2); }
+.empty-state svg { margin: 0 auto 12px; color: var(--text-3); }
+.empty-state p { font-size: 14px; margin-bottom: 12px; }
+.empty-state-cta {
+  display: inline-block; padding: 8px 20px;
+  background: var(--green-dark); color: #fff;
+  border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 500; cursor: pointer;
+  text-decoration: none;
+}
+.empty-state-cta:active { opacity: 0.85; }
+
+/* ── Unit info card (C9) ── */
+.unit-info-card {
+  background: var(--bg-2); border-radius: 12px;
+  padding: 14px 16px; margin: 8px 0 20px;
+}
+.unit-info-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px 16px;
+}
+.unit-info-label { font-size: 11px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px; }
+.unit-info-value { font-size: 14px; font-weight: 500; margin-top: 2px; }
+.unit-mileage-row {
+  margin-top: 10px; display: flex; gap: 8px; align-items: center;
+}
+.unit-mileage-row input {
+  flex: 1; height: 36px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; background: var(--bg); color: var(--text);
+}
+.unit-mileage-row button {
+  background: var(--green-dark); color: #fff; border: none;
+  padding: 6px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
+}
+
+/* ── Milestone table (C9) ── */
+.milestone-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.milestone-table th { padding: 8px 4px; text-align: left; border-bottom: 2px solid var(--border); }
+.milestone-table td { padding: 8px 4px; border-bottom: 1px solid var(--border); }
+
+/* ── Notable mentions card (C9) ── */
+.notable-card { margin-top: 16px; background: var(--bg-2); border-radius: 12px; padding: 14px 16px; }
+.notable-card textarea {
+  width: 100%; padding: 8px; border: 1px solid var(--border);
+  border-radius: 8px; font-size: 13px; font-family: inherit;
+  background: var(--bg); color: var(--text); box-sizing: border-box;
+}
+
+/* ── Invoice table (C9) ── */
+.invoice-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.invoice-table th { padding: 8px 4px; text-align: left; border-bottom: 2px solid var(--border); }
+.invoice-table td { padding: 8px 4px; border-bottom: 1px solid var(--border); }
