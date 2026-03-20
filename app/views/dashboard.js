@@ -8,7 +8,6 @@ import { downloadCSV, parseCSV } from '../graph/csv.js';
 import { getMilestonesForCategory, getMilestoneStatus } from '../maintenance/milestones.js';
 import { dotStatus } from './unit-detail.js';
 import { appendUnit } from '../fleet/units.js';
-import { saveConditionUpdate } from './unit-detail.js';
 import { getValidToken } from '../graph/auth.js';
 import { refreshUnitSelect } from './upload.js';
 import { setCachedFleet } from '../storage/cache.js';
@@ -342,15 +341,6 @@ function renderDashboard(container, allMaintenance, allCondition) {
           ${msRows}
           ${dotRow}
         </div>
-        <div style="border-top:1px solid var(--border);padding-top:6px;margin-top:6px;" onclick="event.preventDefault();event.stopPropagation();">
-          <div style="display:flex;align-items:center;gap:6px;">
-            <input type="text" inputmode="numeric" placeholder="${currentMiles ? currentMiles.toLocaleString() : 'Miles'}"
-              data-mileage-unit="${escapeHtml(u.UnitId)}"
-              style="flex:1;height:32px;padding:0 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--bg);color:var(--text);">
-            <button data-action="quick-mileage" data-unit-id="${escapeHtml(u.UnitId)}"
-              style="height:32px;padding:0 10px;background:var(--green-dark);color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap;">Update mi</button>
-          </div>
-        </div>
       </a>`;
   }).join('');
 
@@ -481,38 +471,6 @@ function renderDashboard(container, allMaintenance, allCondition) {
       renderDashboard(container, allMaintenance, allCondition);
     });
   }
-
-  // Wire quick mileage update (D16)
-  container.querySelectorAll('[data-action="quick-mileage"]').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const unitId = btn.dataset.unitId;
-      const input = container.querySelector(`[data-mileage-unit="${unitId}"]`);
-      const miles = (input?.value || '').trim().replace(/,/g, '');
-      if (!miles || isNaN(Number(miles))) return;
-
-      btn.disabled = true;
-      btn.textContent = '...';
-      try {
-        const token = await getValidToken();
-        await saveConditionUpdate(unitId, { CurrentMiles: miles }, token, state.fleet.conditionPath);
-        input.value = '';
-        input.placeholder = Number(miles).toLocaleString();
-        btn.textContent = 'Done!';
-        setTimeout(() => { btn.textContent = 'Update mi'; btn.disabled = false; }, 1500);
-      } catch (err) {
-        console.error('Quick mileage update failed:', err);
-        btn.textContent = 'Failed';
-        setTimeout(() => { btn.textContent = 'Update mi'; btn.disabled = false; }, 2000);
-      }
-    });
-  });
-
-  // Prevent card navigation when clicking mileage inputs (D16)
-  container.querySelectorAll('[data-mileage-unit]').forEach(input => {
-    input.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); });
-  });
 
   // Wire add unit
   const showBtn = document.getElementById('showAddUnitBtn');
