@@ -77,6 +77,7 @@ export function getMilestonesForCategory(category) {
       type: r.Type || '',
       label: r.Label || r.Type || '',
       intervalMiles: r.IntervalMiles ? Number(r.IntervalMiles) : null,
+      intervalDays: r.IntervalDays ? Number(r.IntervalDays) : null,
     }));
   }
 
@@ -97,7 +98,7 @@ export const MILESTONES = DEFAULT_MILESTONES.Truck;
 
 // ── Config CSV helpers ─────────────────────────────────────────────────────
 
-export const MILESTONE_CONFIG_HEADERS = ['Category', 'Type', 'Label', 'IntervalMiles'];
+export const MILESTONE_CONFIG_HEADERS = ['Category', 'Type', 'Label', 'IntervalMiles', 'IntervalDays'];
 
 /**
  * Build the default milestone-config.csv content from DEFAULT_MILESTONES.
@@ -107,7 +108,7 @@ export function buildDefaultConfigCSV() {
   const rows = [];
   for (const [category, milestones] of Object.entries(DEFAULT_MILESTONES)) {
     for (const ms of milestones) {
-      rows.push(`${category},${ms.type},${ms.label},${ms.intervalMiles ?? ''}`);
+      rows.push(`${category},${ms.type},${ms.label},${ms.intervalMiles ?? ''},${ms.intervalDays ?? ''}`);
     }
   }
   return MILESTONE_CONFIG_HEADERS.join(',') + '\n' + rows.join('\n');
