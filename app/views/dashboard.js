@@ -6,6 +6,7 @@
 import { state } from '../state.js';
 import { downloadCSV, parseCSV } from '../graph/csv.js';
 import { getMilestonesForCategory, getMilestoneStatus } from '../maintenance/milestones.js';
+import { dotStatus } from './unit-detail.js';
 import { appendUnit } from '../fleet/units.js';
 import { saveConditionUpdate } from './unit-detail.js';
 import { getValidToken } from '../graph/auth.js';
@@ -190,6 +191,14 @@ function renderDashboard(container, allMaintenance, allCondition) {
       }
     }
 
+    // Count DOT expiry towards overdue/due-soon
+    const dotExp = (u.DotExpiry || '').trim();
+    if (dotExp) {
+      const ds = dotStatus(dotExp, today);
+      if (ds === 'expired') { unitOverdue++; overdueCount++; }
+      else if (ds === 'warning') { dueSoonCount++; unitDueSoon = true; }
+    }
+
     unitOverdueCount[u.UnitId] = unitOverdue;
     if (unitOverdue > 0) unitStatusMap[u.UnitId] = 'overdue';
     else if (unitDueSoon) unitStatusMap[u.UnitId] = 'due-soon';
@@ -285,6 +294,22 @@ function renderDashboard(container, allMaintenance, allCondition) {
       </div>`;
     }).join('');
 
+    // DOT Expiry row
+    const dotExp = (u.DotExpiry || '').trim();
+    let dotRow = '';
+    if (dotExp) {
+      const ds = dotStatus(dotExp, today);
+      const dotCls = ds === 'expired' ? 'milestone-status--overdue'
+        : ds === 'warning' ? 'milestone-status--overdue' : ds === 'ok' ? 'milestone-status--ok' : 'milestone-status--na';
+      const dotIcon = ds === 'expired' ? '!' : ds === 'warning' ? '!' : ds === 'ok' ? '&#10003;' : '—';
+      const dotInfo = ds === 'expired' ? `${dotExp} (expired)` : ds === 'warning' ? `${dotExp} (soon)` : dotExp;
+      dotRow = `<div style="display:flex;align-items:center;gap:4px;font-size:12px;line-height:1.6;">
+        <span class="milestone-status ${dotCls}">${dotIcon}</span>
+        <span style="flex:1;color:var(--text);">DOT Inspection</span>
+        <span style="color:var(--text-2);font-variant-numeric:tabular-nums;">${dotInfo}</span>
+      </div>`;
+    }
+
     // Badge uses milestone-based overdue count — consistent with card milestone rows
     const overdueCount = unitOverdueCount[u.UnitId] || 0;
     const badgeLabel = overdueCount > 0 ? `${overdueCount} Overdue` : st === 'due-soon' ? 'Due Soon' : 'OK';
@@ -315,6 +340,7 @@ function renderDashboard(container, allMaintenance, allCondition) {
         </div>
         <div style="border-top:1px solid var(--border);padding-top:6px;">
           ${msRows}
+          ${dotRow}
         </div>
         <div style="border-top:1px solid var(--border);padding-top:6px;margin-top:6px;" onclick="event.preventDefault();event.stopPropagation();">
           <div style="display:flex;align-items:center;gap:6px;">
