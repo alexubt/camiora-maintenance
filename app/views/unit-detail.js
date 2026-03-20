@@ -144,15 +144,15 @@ async function appendMaintenanceRecord(row, token, maintenancePath, maintenanceH
 /**
  * Mark a maintenance record as done today.
  */
-async function markDoneToday(maintId, currentMiles, token, maintenancePath, csvOps = defaultCsvOps) {
+async function markDone(maintId, miles, dateStr, token, maintenancePath, csvOps = defaultCsvOps) {
   const { text, hash } = await csvOps.downloadCSV(maintenancePath, token);
   const rows = csvOps.parseCSV(text);
 
-  const today = new Date().toISOString().split('T')[0];
+  const doneDate = dateStr || new Date().toISOString().split('T')[0];
   const idx = rows.findIndex(r => r.MaintId === maintId);
   if (idx >= 0) {
-    rows[idx].LastDoneDate = today;
-    rows[idx].LastDoneMiles = String(currentMiles || '');
+    rows[idx].LastDoneDate = doneDate;
+    rows[idx].LastDoneMiles = String(miles || '');
   }
 
   const newText = csvOps.serializeCSV(MAINTENANCE_HEADERS, rows);
@@ -347,7 +347,21 @@ function renderUnitPage(container, unitId, data) {
                   <td>${intStr}</td>
                   <td>${nextStr}</td>
                   <td>${badge}</td>
-                  <td><button data-action="milestone-done" data-milestone-type="${ms.type}" style="background:none;border:1px solid var(--border);color:var(--text-2);padding:2px 8px;border-radius:6px;font-size:11px;cursor:pointer;">Done</button></td>
+                  <td><button data-action="milestone-done" data-milestone-type="${ms.type}" style="background:none;border:1px solid var(--border);color:var(--text-2);padding:2px 8px;border-radius:6px;font-size:11px;cursor:pointer;">Log</button></td>
+                </tr>
+                <tr id="ms-form-${ms.type}" style="display:none;">
+                  <td colspan="6" style="padding:8px 4px;">
+                    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                      <input type="date" data-ms-date="${ms.type}" value="${today}"
+                        style="height:30px;padding:0 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--bg);color:var(--text);">
+                      <input type="text" inputmode="numeric" data-ms-miles="${ms.type}" placeholder="Miles" value="${currentMiles || ''}"
+                        style="width:90px;height:30px;padding:0 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--bg);color:var(--text);">
+                      <button data-action="milestone-save" data-milestone-type="${ms.type}"
+                        style="height:30px;padding:0 10px;background:var(--green-dark);color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">Save</button>
+                      <button data-action="milestone-cancel" data-milestone-type="${ms.type}"
+                        style="height:30px;padding:0 8px;background:none;border:none;color:var(--text-2);font-size:12px;cursor:pointer;">Cancel</button>
+                    </div>
+                  </td>
                 </tr>`;
               }).join('')}
             </tbody>
@@ -457,7 +471,27 @@ function renderUnitPage(container, unitId, data) {
 
     if (action === 'milestone-done') {
       const milestoneType = e.target.closest('[data-milestone-type]')?.dataset?.milestoneType;
-      if (milestoneType) handleMilestoneDone(container, unitId, milestoneType, currentMiles, data);
+      if (milestoneType) {
+        const formRow = container.querySelector('#ms-form-' + milestoneType);
+        if (formRow) formRow.style.display = formRow.style.display === 'none' ? '' : 'none';
+      }
+    }
+
+    if (action === 'milestone-cancel') {
+      const milestoneType = e.target.closest('[data-milestone-type]')?.dataset?.milestoneType;
+      if (milestoneType) {
+        const formRow = container.querySelector('#ms-form-' + milestoneType);
+        if (formRow) formRow.style.display = 'none';
+      }
+    }
+
+    if (action === 'milestone-save') {
+      const milestoneType = e.target.closest('[data-milestone-type]')?.dataset?.milestoneType;
+      if (milestoneType) {
+        const dateVal = container.querySelector(`[data-ms-date="${milestoneType}"]`)?.value || '';
+        const milesVal = (container.querySelector(`[data-ms-miles="${milestoneType}"]`)?.value || '').replace(/,/g, '');
+        handleMilestoneDone(container, unitId, milestoneType, Number(milesVal) || currentMiles, data, dateVal);
+      }
     }
 
     if (action === 'edit-notable') {
@@ -668,8 +702,8 @@ async function updateTireDate(tireType, dateStr, unitId, token, maintenancePath,
   return await csvOps.writeCSVWithLock(maintenancePath, hash, newText, token);
 }
 
-async function handleMilestoneDone(container, unitId, milestoneType, currentMiles, data) {
-  const today = new Date().toISOString().split('T')[0];
+async function handleMilestoneDone(container, unitId, milestoneType, miles, data, dateStr) {
+  const doneDate = dateStr || new Date().toISOString().split('T')[0];
   const unit = state.fleet.units.find(u => u.UnitId === unitId);
   const milestones = getMilestonesForCategory(unit?.Type || 'Other');
   const milestone = milestones.find(m => m.type === milestoneType);
@@ -677,7 +711,7 @@ async function handleMilestoneDone(container, unitId, milestoneType, currentMile
 
   try {
     if (existing) {
-      await markDoneToday(existing.MaintId, currentMiles, state.token, state.fleet.maintenancePath);
+      await markDone(existing.MaintId, miles, doneDate, state.token, state.fleet.maintenancePath);
     } else {
       const row = {
         MaintId: Date.now().toString(36),
@@ -685,8 +719,8 @@ async function handleMilestoneDone(container, unitId, milestoneType, currentMile
         Type: milestoneType,
         IntervalDays: '',
         IntervalMiles: String(milestone?.intervalMiles || ''),
-        LastDoneDate: today,
-        LastDoneMiles: String(currentMiles),
+        LastDoneDate: doneDate,
+        LastDoneMiles: String(miles),
         Notes: '',
       };
       await appendMaintenanceRecord(row, state.token, state.fleet.maintenancePath, state.fleet.maintenanceHash);
