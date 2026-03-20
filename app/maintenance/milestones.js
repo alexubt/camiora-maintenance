@@ -18,7 +18,7 @@ export const DEFAULT_MILESTONES = {
     { type: 'dpf-cleaning', label: 'DPF Cleaning', intervalMiles: 250000 },
     { type: 'transmission-oil', label: 'Transmission Oil', intervalMiles: 250000 },
     { type: 'differential-oil', label: 'Differential Oil', intervalMiles: 250000 },
-    { type: 'air-dryer', label: 'Air Dryer', intervalMiles: null },
+    { type: 'air-dryer', label: 'Air Dryer Cartridge', intervalMiles: null, intervalDays: 365 },
     { type: 'belts-tensioners', label: 'Belts & Tensioners', intervalMiles: 250000 },
   ],
   Trailer: [
@@ -117,30 +117,55 @@ export function buildDefaultConfigCSV() {
 
 /**
  * Get the status of a milestone given maintenance records and current mileage.
- * @param {{type: string, intervalMiles: number|null}} milestone
- * @param {Array<{Type: string, LastDoneMiles: string}>} maintenanceRecords
+ * Supports mileage-based intervals (intervalMiles) and time-based intervals (intervalDays).
+ * @param {{type: string, intervalMiles: number|null, intervalDays: number|null}} milestone
+ * @param {Array<{Type: string, LastDoneMiles: string, LastDoneDate: string}>} maintenanceRecords
  * @param {number} currentMiles
- * @returns {{lastDoneMiles: number|null, nextDueMiles: number|null, overdue: boolean, status: string, record: object|undefined}}
+ * @returns {{lastDoneMiles: number|null, lastDoneDate: string|null, nextDueMiles: number|null, nextDueDate: string|null, overdue: boolean, status: string, record: object|undefined}}
  */
 export function getMilestoneStatus(milestone, maintenanceRecords, currentMiles) {
   const record = maintenanceRecords.find(r => r.Type === milestone.type);
 
   if (!record) {
-    return { lastDoneMiles: null, nextDueMiles: null, overdue: false, status: 'not-tracked', record: undefined };
+    return { lastDoneMiles: null, lastDoneDate: null, nextDueMiles: null, nextDueDate: null, overdue: false, status: 'not-tracked', record: undefined };
   }
 
-  if (milestone.intervalMiles === null) {
-    const lastDoneMiles = Number(record.LastDoneMiles) || null;
-    return { lastDoneMiles, nextDueMiles: null, overdue: false, status: 'no-interval', record };
+  const lastDoneMiles = Number(record.LastDoneMiles) || null;
+  const lastDoneDate = record.LastDoneDate || null;
+  let nextDueMiles = null;
+  let nextDueDate = null;
+  let overdue = false;
+
+  // Mileage-based check
+  if (milestone.intervalMiles != null && lastDoneMiles != null) {
+    nextDueMiles = lastDoneMiles + milestone.intervalMiles;
+    if (currentMiles >= nextDueMiles) overdue = true;
   }
 
-  const lastDoneMiles = Number(record.LastDoneMiles);
-  const nextDueMiles = lastDoneMiles + milestone.intervalMiles;
-  const overdue = currentMiles >= nextDueMiles;
+  // Time-based check
+  if (milestone.intervalDays != null && lastDoneDate) {
+    const d = new Date(lastDoneDate + 'T00:00:00');
+    if (!isNaN(d.getTime())) {
+      d.setDate(d.getDate() + milestone.intervalDays);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      nextDueDate = `${yyyy}-${mm}-${dd}`;
+      const today = new Date().toISOString().split('T')[0];
+      if (today >= nextDueDate) overdue = true;
+    }
+  }
+
+  // No interval configured at all
+  if (milestone.intervalMiles == null && milestone.intervalDays == null) {
+    return { lastDoneMiles, lastDoneDate, nextDueMiles: null, nextDueDate: null, overdue: false, status: 'no-interval', record };
+  }
 
   return {
     lastDoneMiles,
+    lastDoneDate,
     nextDueMiles,
+    nextDueDate,
     overdue,
     status: overdue ? 'overdue' : 'ok',
     record,

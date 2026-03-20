@@ -290,6 +290,11 @@ function renderUnitInfo(unitId, condition, today) {
           value="${currentMiles || ''}">
         <button data-action="save-mileage">Update</button>
       </div>
+      <div class="unit-mileage-row">
+        <input type="date" id="editDotQuick" value="${escapeHtml(dotExpiry)}"
+          style="flex:1;font-size:13px;">
+        <button data-action="save-dot">DOT Expiry</button>
+      </div>
     </div>`;
 }
 
@@ -334,9 +339,16 @@ function renderUnitPage(container, unitId, data) {
             <tbody>
               ${milestones.map(ms => {
                 const s = getMilestoneStatus(ms, data.maintenance, currentMiles);
-                const lastStr = s.lastDoneMiles != null ? Number(s.lastDoneMiles).toLocaleString() + ' mi' : '---';
-                const intStr = ms.intervalMiles != null ? ms.intervalMiles.toLocaleString() + ' mi' : '---';
-                const nextStr = s.nextDueMiles != null ? Number(s.nextDueMiles).toLocaleString() + ' mi' : '---';
+                const isTimeBased = ms.intervalDays != null && ms.intervalMiles == null;
+                const lastStr = isTimeBased
+                  ? (s.lastDoneDate || '---')
+                  : (s.lastDoneMiles != null ? Number(s.lastDoneMiles).toLocaleString() + ' mi' : '---');
+                const intStr = isTimeBased
+                  ? (ms.intervalDays + ' days')
+                  : (ms.intervalMiles != null ? ms.intervalMiles.toLocaleString() + ' mi' : '---');
+                const nextStr = isTimeBased
+                  ? (s.nextDueDate || '---')
+                  : (s.nextDueMiles != null ? Number(s.nextDueMiles).toLocaleString() + ' mi' : '---');
                 let badge;
                 if (s.status === 'overdue') badge = statusBadge('overdue', 'Overdue');
                 else if (s.status === 'ok') badge = statusBadge('ok', 'OK');
@@ -448,6 +460,10 @@ function renderUnitPage(container, unitId, data) {
 
     if (action === 'save-mileage') {
       handleSaveMileage(container, unitId);
+    }
+
+    if (action === 'save-dot') {
+      handleSaveDot(container, unitId);
     }
 
     if (action === 'edit-unit') {
@@ -587,6 +603,22 @@ async function handleSaveUnitEdit(container, unitId) {
     render(container, { id: unitId });
   } catch (err) {
     console.error('Unit edit failed:', err);
+    showToast(container, 'Save failed: ' + err.message, 'error');
+  }
+}
+
+async function handleSaveDot(container, unitId) {
+  const dotVal = (container.querySelector('#editDotQuick')?.value || '').trim();
+  if (!dotVal) return;
+  try {
+    const token = await getValidToken();
+    await updateUnit(unitId, { DotExpiry: dotVal }, token, state.fleet.unitsPath);
+    const local = state.fleet.units.find(u => u.UnitId === unitId);
+    if (local) local.DotExpiry = dotVal;
+    showToast(container, 'DOT Expiry updated', 'success');
+    render(container, { id: unitId });
+  } catch (err) {
+    console.error('DOT update failed:', err);
     showToast(container, 'Save failed: ' + err.message, 'error');
   }
 }

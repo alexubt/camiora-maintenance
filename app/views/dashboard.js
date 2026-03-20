@@ -267,7 +267,10 @@ function renderDashboard(container, allMaintenance, allCondition) {
         : s.status === 'ok' ? 'milestone-status--ok' : 'milestone-status--na';
       const icon = s.status === 'overdue' ? '!' : s.status === 'ok' ? '&#10003;' : '—';
       let info = '';
-      if (s.nextDueMiles != null) {
+      if (s.nextDueDate != null) {
+        info = s.nextDueDate;
+        if (s.status === 'overdue') info += ' (overdue)';
+      } else if (s.nextDueMiles != null) {
         info = `@ ${Math.round(s.nextDueMiles / 1000)}K`;
         if (s.status === 'overdue') info += ' (overdue)';
       } else if (s.status === 'no-interval') {
