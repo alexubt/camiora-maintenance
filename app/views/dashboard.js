@@ -228,8 +228,8 @@ function renderDashboard(container, allMaintenance, allCondition) {
   const searchFilterHtml = `
     <div style="display:flex;gap:8px;margin-bottom:12px;">
       <input type="text" id="dashSearch" placeholder="Search by Unit ID..." value="${escapeHtml(_searchQuery)}"
-        style="flex:1;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);">
-      <select id="dashStatusFilter" style="height:40px;padding:0 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--bg);color:var(--text);">
+        style="flex:1;min-width:0;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);">
+      <select id="dashStatusFilter" style="width:90px;flex-shrink:0;height:40px;padding:0 6px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--bg);color:var(--text);">
         <option value="all"${_statusFilter === 'all' ? ' selected' : ''}>All</option>
         <option value="overdue"${_statusFilter === 'overdue' ? ' selected' : ''}>Overdue</option>
         <option value="due-soon"${_statusFilter === 'due-soon' ? ' selected' : ''}>Due Soon</option>
