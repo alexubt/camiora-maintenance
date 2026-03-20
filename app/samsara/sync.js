@@ -64,7 +64,7 @@ export async function loadConditionCache() {
 // ── Fetch vehicle stats from Worker proxy ──────────────────────────────────
 
 async function fetchVehicleStats() {
-  const url = `${WORKER_URL}/vehicles/stats?types=obdOdometerMeters,gpsOdometerMeters`;
+  const url = `${WORKER_URL}/vehicles/stats?types=obdOdometerMeters,gpsOdometerMeters,gps`;
   const resp = await fetch(url);
   if (!resp.ok) {
     throw new Error(`Samsara proxy returned ${resp.status}`);
@@ -85,6 +85,30 @@ function buildOdometerMap(statsData) {
     if (id && meters != null && meters > 0) {
       map.set(id, Math.round(meters / 1609.344));
     }
+  }
+  return map;
+}
+
+// ── Build location map from Samsara response ──────────────────────────────
+
+const HEADINGS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+
+function buildLocationMap(statsData) {
+  const map = new Map();  // vehicleId → { location, heading, speed, lat, lng }
+  const vehicles = statsData?.data || [];
+  for (const v of vehicles) {
+    const gps = v.gps;
+    if (!v.id || !gps || !gps.latitude) continue;
+    map.set(v.id, {
+      location: gps.reverseGeo?.formattedLocation || '',
+      address: gps.address?.name || '',
+      heading: HEADINGS[Math.round(gps.headingDegrees / 45) % 8],
+      headingDeg: gps.headingDegrees,
+      speed: Math.round(gps.speedMilesPerHour || 0),
+      lat: gps.latitude,
+      lng: gps.longitude,
+      time: gps.time,
+    });
   }
   return map;
 }
@@ -194,16 +218,28 @@ async function pollTick() {
   try {
     const statsData = await fetchVehicleStats();
     const odometerMap = buildOdometerMap(statsData);
+    const locationMap = buildLocationMap(statsData);
     const updates = computeUpdates(odometerMap);
+
+    // Store locations in state for dashboard display
+    const locations = {};
+    for (const [unitId, vehicleId] of state.samsara.mapping) {
+      const loc = locationMap.get(vehicleId);
+      if (loc) locations[unitId] = loc;
+    }
+    state.samsara.locations = locations;
+
+    const needsRender = updates.length || Object.keys(locations).length;
 
     if (updates.length) {
       await batchUpdateCondition(updates, token);
-      // Re-render dashboard if it's the active view
-      if (window.location.hash === '#dashboard' || window.location.hash === '') {
-        requestAnimationFrame(() => {
-          window.dispatchEvent(new HashChangeEvent('hashchange'));
-        });
-      }
+    }
+
+    // Re-render dashboard if it's the active view
+    if (needsRender && (window.location.hash === '#dashboard' || window.location.hash === '')) {
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
     }
 
     state.samsara.lastSynced = Date.now();

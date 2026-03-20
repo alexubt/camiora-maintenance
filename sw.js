@@ -1,4 +1,4 @@
-const CACHE = 'camiora-v14';
+const CACHE = 'camiora-v15';
 const STATIC = [
   './',
   './index.html',

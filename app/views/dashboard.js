@@ -287,12 +287,26 @@ function renderDashboard(container, allMaintenance, allCondition) {
     const badgeLabel = overdueCount > 0 ? `${overdueCount} Overdue` : st === 'due-soon' ? 'Due Soon' : 'OK';
     const badgeStatus = overdueCount > 0 ? 'overdue' : st;
 
+    // Location from Samsara
+    const loc = state.samsara?.locations?.[u.UnitId];
+    let locationHtml = '';
+    if (loc) {
+      const place = loc.address || loc.location || '';
+      const moving = loc.speed > 3;
+      const arrow = moving ? ` → ${loc.heading}` : '';
+      const speedStr = moving ? ` · ${loc.speed} mph` : '';
+      locationHtml = place ? `<div style="font-size:11px;color:var(--text-2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        ${moving ? '&#x1F69A;' : '&#x1F4CD;'} ${escapeHtml(place)}${arrow}${speedStr}
+      </div>` : '';
+    }
+
     return `
       <a href="#unit?id=${encodeURIComponent(u.UnitId)}" class="dash-card-expanded">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-          <div>
+          <div style="min-width:0;flex:1;">
             <div style="font-weight:600;font-size:15px;">${escapeHtml(u.UnitId)}</div>
             <div style="font-size:12px;color:var(--text-2);">${escapeHtml(u.Type || '')}${currentMiles ? ' · ' + formatMiles(currentMiles) : ''}</div>
+            ${locationHtml}
           </div>
           ${statusBadge(badgeStatus, badgeLabel)}
         </div>

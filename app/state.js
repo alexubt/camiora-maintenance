@@ -26,6 +26,7 @@ export const state = {
   },
   samsara: {
     mapping:           new Map(),  // UnitId → SamsaraVehicleId
+    locations:         {},         // UnitId → { location, heading, speed, lat, lng }
     enabled:           false,      // true once mapping CSV is found and non-empty
     lastSynced:        0,          // timestamp ms, 0 = never
     lastError:         null,       // string | null
