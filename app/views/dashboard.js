@@ -13,6 +13,31 @@ import { getValidToken } from '../graph/auth.js';
 import { refreshUnitSelect } from './upload.js';
 import { setCachedFleet } from '../storage/cache.js';
 
+// ── Samsara sync badge ──────────────────────────────────────────────────────
+
+function renderSamsaraBadge() {
+  const s = state.samsara;
+  if (!s || s.syncStatus === 'idle' || s.syncStatus === 'no-mapping') return '';
+
+  let dot, label;
+  if (s.syncStatus === 'syncing') {
+    dot = 'background:#f59e0b;animation:pulse 1s infinite;';
+    label = 'Syncing...';
+  } else if (s.syncStatus === 'ok') {
+    dot = 'background:#22c55e;';
+    const ago = s.lastSynced ? Math.round((Date.now() - s.lastSynced) / 60000) : 0;
+    label = ago < 1 ? 'Synced just now' : `Synced ${ago}m ago`;
+  } else {
+    dot = 'background:#ef4444;';
+    label = 'Sync error';
+  }
+
+  return `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-2);margin-top:2px;">
+    <span style="width:7px;height:7px;border-radius:50%;display:inline-block;${dot}"></span>
+    ${escapeHtml(label)}
+  </div>`;
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function escapeHtml(str) {
@@ -370,6 +395,7 @@ function renderDashboard(container, allMaintenance, allCondition) {
         <div class="logo-text">Camiora</div>
         <div class="logo-sub">Dashboard</div>
       </div>
+      ${renderSamsaraBadge()}
     </div>
 
     <nav class="section-nav">

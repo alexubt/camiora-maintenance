@@ -15,6 +15,7 @@ import { refreshUnitSelect } from './views/upload.js';
 import { initInstallPrompt } from './install.js';
 import { UNIT_HEADERS } from './fleet/units.js';
 import { buildDefaultConfigCSV, MILESTONE_CONFIG_HEADERS } from './maintenance/milestones.js';
+import { loadSamsaraMapping, loadConditionCache, startSamsaraPoller } from './samsara/sync.js';
 
 // ── Upload queue drain (retries queued offline uploads) ──────────────────────
 async function drainUploadQueue() {
@@ -155,11 +156,13 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Load fleet data in background if authenticated (do not await — let UI render first)
   if (state.token) {
-    Promise.all([loadFleetData(), loadMilestoneConfig()]).then(() => {
+    Promise.all([loadFleetData(), loadMilestoneConfig(), loadConditionCache(), loadSamsaraMapping()]).then(() => {
       refreshUnitSelect();
       window.dispatchEvent(new HashChangeEvent('hashchange'));
       // Drain any leftover queued uploads from previous sessions
       drainUploadQueue();
+      // Start Samsara mileage poller (no-op if no mapping CSV found)
+      startSamsaraPoller();
     });
   }
 });

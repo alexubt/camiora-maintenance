@@ -1,0 +1,9 @@
+name = "camiora-samsara-proxy"
+main = "samsara-proxy.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://alexubt.github.io"
+
+# Set the Samsara API key as a secret (never in source):
+#   cd worker && wrangler secret put SAMSARA_API_KEY
