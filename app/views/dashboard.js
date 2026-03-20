@@ -5,7 +5,6 @@
 
 import { state } from '../state.js';
 import { downloadCSV, parseCSV } from '../graph/csv.js';
-import { isOverdue, getDueDate, getDueMiles } from '../maintenance/schedule.js';
 import { getMilestonesForCategory, getMilestoneStatus } from '../maintenance/milestones.js';
 import { appendUnit } from '../fleet/units.js';
 import { saveConditionUpdate } from './unit-detail.js';
@@ -43,12 +42,6 @@ function renderSamsaraBadge() {
 function escapeHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function dayDiff(dateA, dateB) {
-  const a = new Date(dateA + 'T00:00:00');
-  const b = new Date(dateB + 'T00:00:00');
-  return Math.round((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function statusBadge(status, label) {
@@ -172,37 +165,35 @@ function renderDashboard(container, allMaintenance, allCondition) {
     _activeTab = categories[0] || 'All';
   }
 
-  // Build overdue/due-soon counts per unit for card badges and summary bar
+  // Build overdue counts using milestone system (same as card rows)
   let overdueCount = 0;
   let dueSoonCount = 0;
   const unitStatusMap = {};
-  const unitOverdueCount = {}; // unitId → number of overdue records
-
-  for (const rec of allMaintenance) {
-    const unitId = rec.UnitId;
-    if (!unitId) continue;
-    const cond = conditionMap[unitId];
-    const currentMiles = cond ? Number(cond.CurrentMiles) || 0 : 0;
-
-    if (isOverdue(rec, today, currentMiles)) {
-      overdueCount++;
-      unitStatusMap[unitId] = 'overdue';
-      unitOverdueCount[unitId] = (unitOverdueCount[unitId] || 0) + 1;
-    } else {
-      const dueDate = getDueDate(rec);
-      const dueMiles = getDueMiles(rec);
-      let dueSoon = false;
-      if (dueDate !== null && dayDiff(dueDate, today) >= 0 && dayDiff(dueDate, today) <= 7) dueSoon = true;
-      if (dueMiles !== null && currentMiles > 0 && (dueMiles - currentMiles) >= 0 && (dueMiles - currentMiles) <= 500) dueSoon = true;
-      if (dueSoon) {
-        dueSoonCount++;
-        if (unitStatusMap[unitId] !== 'overdue') unitStatusMap[unitId] = 'due-soon';
-      }
-    }
-  }
+  const unitOverdueCount = {}; // unitId → number of overdue milestones
 
   for (const u of units) {
-    if (!unitStatusMap[u.UnitId]) unitStatusMap[u.UnitId] = 'ok';
+    const cond = conditionMap[u.UnitId];
+    const currentMiles = cond ? Number(cond.CurrentMiles) || 0 : 0;
+    const unitMaint = allMaintenance.filter(r => r.UnitId === u.UnitId);
+    const milestones = getMilestonesForCategory(u.Type || 'Other');
+
+    let unitOverdue = 0;
+    let unitDueSoon = false;
+    for (const ms of milestones) {
+      const s = getMilestoneStatus(ms, unitMaint, currentMiles);
+      if (s.status === 'overdue') {
+        unitOverdue++;
+        overdueCount++;
+      } else if (s.status === 'ok' && s.nextDueMiles != null && currentMiles > 0) {
+        const remaining = s.nextDueMiles - currentMiles;
+        if (remaining >= 0 && remaining <= 500) { dueSoonCount++; unitDueSoon = true; }
+      }
+    }
+
+    unitOverdueCount[u.UnitId] = unitOverdue;
+    if (unitOverdue > 0) unitStatusMap[u.UnitId] = 'overdue';
+    else if (unitDueSoon) unitStatusMap[u.UnitId] = 'due-soon';
+    else unitStatusMap[u.UnitId] = 'ok';
   }
 
   // Action banners removed — card badges + summary bar are sufficient
@@ -291,7 +282,7 @@ function renderDashboard(container, allMaintenance, allCondition) {
       </div>`;
     }).join('');
 
-    // Badge uses the unified overdue count from isOverdue() — consistent with action banners
+    // Badge uses milestone-based overdue count — consistent with card milestone rows
     const overdueCount = unitOverdueCount[u.UnitId] || 0;
     const badgeLabel = overdueCount > 0 ? `${overdueCount} Overdue` : st === 'due-soon' ? 'Due Soon' : 'OK';
     const badgeStatus = overdueCount > 0 ? 'overdue' : st;
