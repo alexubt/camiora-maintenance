@@ -172,10 +172,9 @@ function renderDashboard(container, allMaintenance, allCondition) {
     _activeTab = categories[0] || 'All';
   }
 
-  // Build overdue/due-soon action items (across all categories)
-  // Also count overdue items per unit for card badges
-  const overdueItems = [];
-  const dueSoonItems = [];
+  // Build overdue/due-soon counts per unit for card badges and summary bar
+  let overdueCount = 0;
+  let dueSoonCount = 0;
   const unitStatusMap = {};
   const unitOverdueCount = {}; // unitId → number of overdue records
 
@@ -186,7 +185,7 @@ function renderDashboard(container, allMaintenance, allCondition) {
     const currentMiles = cond ? Number(cond.CurrentMiles) || 0 : 0;
 
     if (isOverdue(rec, today, currentMiles)) {
-      overdueItems.push(buildActionItem(rec, unitId, today, currentMiles, 'overdue'));
+      overdueCount++;
       unitStatusMap[unitId] = 'overdue';
       unitOverdueCount[unitId] = (unitOverdueCount[unitId] || 0) + 1;
     } else {
@@ -196,7 +195,7 @@ function renderDashboard(container, allMaintenance, allCondition) {
       if (dueDate !== null && dayDiff(dueDate, today) >= 0 && dayDiff(dueDate, today) <= 7) dueSoon = true;
       if (dueMiles !== null && currentMiles > 0 && (dueMiles - currentMiles) >= 0 && (dueMiles - currentMiles) <= 500) dueSoon = true;
       if (dueSoon) {
-        dueSoonItems.push(buildActionItem(rec, unitId, today, currentMiles, 'due-soon'));
+        dueSoonCount++;
         if (unitStatusMap[unitId] !== 'overdue') unitStatusMap[unitId] = 'due-soon';
       }
     }
@@ -206,22 +205,7 @@ function renderDashboard(container, allMaintenance, allCondition) {
     if (!unitStatusMap[u.UnitId]) unitStatusMap[u.UnitId] = 'ok';
   }
 
-  // Filter action items by active tab (B7)
-  const tabUnitIds = new Set(units.filter(u => (u.Type || 'Other').trim() === _activeTab).map(u => u.UnitId));
-  const tabOverdue = overdueItems.filter(item => tabUnitIds.has(item.unitId));
-  const tabDueSoon = dueSoonItems.filter(item => tabUnitIds.has(item.unitId));
-
-  // Action items HTML (filtered by active tab)
-  let actionHtml = '';
-  if (tabOverdue.length === 0 && tabDueSoon.length === 0) {
-    actionHtml = `
-      <div style="background:rgba(40,167,69,0.08);border-left:3px solid #28a745;padding:12px 14px;border-radius:var(--radius);margin-bottom:8px;color:#28a745;font-weight:500;">
-        All caught up — no maintenance items need attention.
-      </div>`;
-  } else {
-    for (const item of tabOverdue) actionHtml += renderActionItem(item, 'overdue');
-    for (const item of tabDueSoon) actionHtml += renderActionItem(item, 'due-soon');
-  }
+  // Action banners removed — card badges + summary bar are sufficient
 
   // Fleet summary bar HTML (B4 — uses unfiltered counts across all categories)
   const summaryBarHtml = `
@@ -231,11 +215,11 @@ function renderDashboard(container, allMaintenance, allCondition) {
         <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;">Units</div>
       </div>
       <div style="flex:1;background:var(--bg-2);border-radius:var(--radius);padding:10px 14px;text-align:center;">
-        <div class="milestone-status milestone-status--overdue" style="font-size:20px;font-weight:700;">${overdueItems.length}</div>
+        <div class="milestone-status milestone-status--overdue" style="font-size:20px;font-weight:700;">${overdueCount}</div>
         <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;">Overdue</div>
       </div>
       <div style="flex:1;background:var(--bg-2);border-radius:var(--radius);padding:10px 14px;text-align:center;">
-        <div style="font-size:20px;font-weight:700;color:var(--text-2);">${dueSoonItems.length}</div>
+        <div style="font-size:20px;font-weight:700;color:var(--text-2);">${dueSoonCount}</div>
         <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;">Due Soon</div>
       </div>
     </div>`;
@@ -420,7 +404,6 @@ function renderDashboard(container, allMaintenance, allCondition) {
     <div style="padding:16px;padding-bottom:80px;">
       ${summaryBarHtml}
       ${searchFilterHtml}
-      ${actionHtml}
 
       ${categories.length > 1 ? `
         <div class="dash-tabs" style="display:flex;gap:6px;margin:16px 0 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
@@ -568,31 +551,3 @@ async function handleAddUnit(container, allMaintenance, allCondition) {
   }
 }
 
-// ── Action item builders ────────────────────────────────────────────────────
-
-function buildActionItem(rec, unitId, today, currentMiles, status) {
-  const dueDate = getDueDate(rec);
-  const dueMiles = getDueMiles(rec);
-  let detail = '';
-
-  if (status === 'overdue') {
-    if (dueDate !== null && today > dueDate) { const d = dayDiff(today, dueDate); detail = `${d} day${d !== 1 ? 's' : ''} past due`; }
-    if (dueMiles !== null && currentMiles >= dueMiles) { if (detail) detail += ' / '; detail += `${currentMiles - dueMiles} mi past due`; }
-  } else {
-    if (dueDate !== null) { const d = dayDiff(dueDate, today); if (d >= 0 && d <= 7) detail = `due in ${d} day${d !== 1 ? 's' : ''}`; }
-    if (dueMiles !== null && currentMiles > 0) { const m = dueMiles - currentMiles; if (m >= 0 && m <= 500) { if (detail) detail += ' / '; detail += `${m} mi remaining`; } }
-  }
-
-  return { unitId, type: rec.Type || 'maintenance', detail };
-}
-
-function renderActionItem(item, status) {
-  const cls = status === 'overdue' ? 'dash-action-overdue' : 'dash-action-due-soon';
-  return `
-    <a href="#unit?id=${encodeURIComponent(item.unitId)}" class="dash-action ${cls}">
-      <div>
-        <div style="font-weight:600;font-size:14px;">${escapeHtml(item.unitId)} — ${escapeHtml(item.type)}</div>
-        <div style="font-size:12px;color:var(--text-2);margin-top:2px;">${escapeHtml(item.detail)}</div>
-      </div>
-    </a>`;
-}
