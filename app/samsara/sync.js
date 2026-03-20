@@ -79,8 +79,8 @@ function buildOdometerMap(statsData) {
   const vehicles = statsData?.data || [];
   for (const v of vehicles) {
     const id = v.id;
-    const obdMeters = v.obdOdometerMeters?.[0]?.value;
-    const gpsMeters = v.gpsOdometerMeters?.[0]?.value;
+    const obdMeters = v.obdOdometerMeters?.value;
+    const gpsMeters = v.gpsOdometerMeters?.value;
     const meters = obdMeters ?? gpsMeters;
     if (id && meters != null && meters > 0) {
       map.set(id, Math.round(meters / 1609.344));
