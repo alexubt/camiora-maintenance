@@ -43,16 +43,34 @@ export function escapeHtml(str) {
  */
 export function dotStatus(dotExpiry, todayStr) {
   if (!dotExpiry) return 'unknown';
-  if (dotExpiry < todayStr) return 'expired';
 
-  // Check if within 30 days
-  const expiry = new Date(dotExpiry + 'T00:00:00');
+  // Normalize date — handle MM/DD/YYYY, M.DD.YYYY, and ISO YYYY-MM-DD
+  const expiry = parseFlexDate(dotExpiry);
+  if (!expiry) return 'unknown';
+
   const today = new Date(todayStr + 'T00:00:00');
   const diffMs = expiry.getTime() - today.getTime();
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
-  if (diffDays <= 30) return 'warning';
 
+  if (diffDays < 0) return 'expired';
+  if (diffDays <= 30) return 'warning';
   return 'ok';
+}
+
+function parseFlexDate(str) {
+  if (!str) return null;
+  // ISO: 2026-12-31
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const d = new Date(str + 'T00:00:00');
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // US: M/DD/YYYY, MM/DD/YYYY, M.DD.YYYY, MM.DD.YYYY
+  const m = str.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+  if (m) {
+    const d = new Date(`${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}T00:00:00`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
 }
 
 /**
