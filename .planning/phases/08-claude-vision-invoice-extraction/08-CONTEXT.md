@@ -172,6 +172,7 @@ Claude should map common invoice descriptions to these milestone types:
 - "alignment" → `alignment`
 - "steer tire", "new steers" → `steer-tires`
 - "drive tire", "new drives" → `drive-tires`
+- "batteries", "battery", "new batteries" → `batteries`
 
 This mapping lives in the Claude prompt, not in app code.
 

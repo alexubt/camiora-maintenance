@@ -20,6 +20,7 @@ export const DEFAULT_MILESTONES = {
     { type: 'differential-oil', label: 'Differential Oil', intervalMiles: 250000 },
     { type: 'air-dryer', label: 'Air Dryer Cartridge', intervalMiles: null, intervalDays: 365 },
     { type: 'belts-tensioners', label: 'Belts & Tensioners', intervalMiles: 250000 },
+    { type: 'batteries', label: 'Batteries', intervalMiles: null, intervalDays: 730 },
   ],
   Trailer: [
     { type: 'PM', label: 'PM', intervalMiles: 30000 },
