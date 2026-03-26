@@ -131,7 +131,13 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+6 todos captured (2026-03-26):
+- Scheduled Samsara mileage sync via Worker Cron
+- Samsara fault code alerts and push notifications
+- DOT expiry reminder notifications
+- Migrate CSV files to Cloudflare D1 database
+- PDF receipt auto-emailer via Worker
+- Weekly fleet maintenance report email
 
 ### Blockers/Concerns
 
