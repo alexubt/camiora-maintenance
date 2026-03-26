@@ -6,7 +6,7 @@
 import { downloadCSV, parseCSV, serializeCSV, writeCSVWithLock } from '../graph/csv.js';
 
 /** Column order for invoices.csv */
-export const INVOICE_HEADERS = ['InvoiceId', 'UnitId', 'Date', 'Type', 'Cost', 'PdfPath'];
+export const INVOICE_HEADERS = ['InvoiceId', 'UnitId', 'Date', 'Type', 'Cost', 'Vendor', 'InvoiceNumber', 'Summary', 'PdfPath'];
 
 /** Default csv operations — wired to real graph/csv.js functions */
 const defaultCsvOps = { downloadCSV, parseCSV, serializeCSV, writeCSVWithLock };
@@ -22,8 +22,11 @@ const defaultCsvOps = { downloadCSV, parseCSV, serializeCSV, writeCSVWithLock };
  * @returns {Promise<Object>} driveItem response from Graph API
  */
 export async function appendInvoiceRecord(row, token, invoicesPath, csvOps = defaultCsvOps) {
-  // Sanitize Cost: strip commas to prevent CSV breakage
+  // Sanitize fields: strip commas to prevent CSV breakage
   row.Cost = (row.Cost || '').replace(/,/g, '');
+  row.Vendor = (row.Vendor || '').replace(/,/g, '');
+  row.InvoiceNumber = (row.InvoiceNumber || '').replace(/,/g, '');
+  row.Summary = (row.Summary || '').replace(/,/g, '');
 
   try {
     return await _doAppend(row, token, invoicesPath, csvOps);

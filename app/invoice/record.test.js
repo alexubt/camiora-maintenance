@@ -5,7 +5,7 @@ import { appendInvoiceRecord, INVOICE_HEADERS } from './record.js';
 describe('INVOICE_HEADERS', () => {
   it('has the correct columns', () => {
     assert.deepStrictEqual(INVOICE_HEADERS, [
-      'InvoiceId', 'UnitId', 'Date', 'Type', 'Cost', 'PdfPath',
+      'InvoiceId', 'UnitId', 'Date', 'Type', 'Cost', 'Vendor', 'InvoiceNumber', 'Summary', 'PdfPath',
     ]);
   });
 });
@@ -59,13 +59,13 @@ describe('appendInvoiceRecord', () => {
     const row = { InvoiceId: 'INV-001', UnitId: 'TR-042', Date: '2026-03-16', Type: 'oil-change', Cost: '150', PdfPath: '/path.pdf' };
     await appendInvoiceRecord(row, token, invoicesPath, ops);
     const lines = writtenText.split('\n');
-    assert.equal(lines[0], 'InvoiceId,UnitId,Date,Type,Cost,PdfPath');
-    assert.equal(lines[1], 'INV-001,TR-042,2026-03-16,oil-change,150,/path.pdf');
+    assert.equal(lines[0], 'InvoiceId,UnitId,Date,Type,Cost,Vendor,InvoiceNumber,Summary,PdfPath');
+    assert.equal(lines[1], 'INV-001,TR-042,2026-03-16,oil-change,150,,,,/path.pdf');
   });
 
   it('subsequent write appends without losing existing data', async () => {
     let writtenText = '';
-    const existingCSV = 'InvoiceId,UnitId,Date,Type,Cost,PdfPath\nINV-001,TR-042,2026-03-16,oil-change,150,/path1.pdf';
+    const existingCSV = 'InvoiceId,UnitId,Date,Type,Cost,Vendor,InvoiceNumber,Summary,PdfPath\nINV-001,TR-042,2026-03-16,oil-change,150,,,,/path1.pdf';
     const ops = makeMockOps({
       downloadCSV: async () => ({ text: existingCSV, hash: 'abc123' }),
       writeCSVWithLock: async (path, hash, text) => { writtenText = text; return { id: 'x' }; },
@@ -74,8 +74,8 @@ describe('appendInvoiceRecord', () => {
     await appendInvoiceRecord(row, token, invoicesPath, ops);
     const lines = writtenText.split('\n');
     assert.equal(lines.length, 3);
-    assert.equal(lines[1], 'INV-001,TR-042,2026-03-16,oil-change,150,/path1.pdf');
-    assert.equal(lines[2], 'INV-002,TL-017,2026-03-17,dot-inspection,200,/path2.pdf');
+    assert.equal(lines[1], 'INV-001,TR-042,2026-03-16,oil-change,150,,,,/path1.pdf');
+    assert.equal(lines[2], 'INV-002,TL-017,2026-03-17,dot-inspection,200,,,,/path2.pdf');
   });
 
   it('retries exactly once on CSV_CONFLICT', async () => {
@@ -124,7 +124,7 @@ describe('appendInvoiceRecord', () => {
     // Cost column should be empty, not 'undefined'
     assert.ok(!lines[1].includes('undefined'), 'Cost should not be undefined');
     const values = lines[1].split(',');
-    assert.equal(values[4], ''); // Cost is index 4
+    assert.equal(values[4], ''); // Cost is index 4 in new headers
   });
 
   it('strips commas from Cost field', async () => {

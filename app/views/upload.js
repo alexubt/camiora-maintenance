@@ -29,6 +29,7 @@ function getUnitType(unitId) {
 // Module-level state
 let container = null;
 let files = [];
+let _lastExtraction = null; // last Claude extraction result
 
 // ── Public render entry point ──────────────────────────────────────────────────
 export function render(el) {
@@ -670,6 +671,7 @@ function hideExtractionResults() {
  */
 function prefillExtractionFields(data) {
   if (!data) return;
+  _lastExtraction = data;
 
   // ── Auto-fill form fields (never overwrite user input) ────────────────────
 
@@ -855,6 +857,7 @@ async function handleSubmit() {
             Cost: cost,
             Vendor: vendor,
             InvoiceNumber: invoiceNumber,
+            Summary: _lastExtraction?.summary || '',
             PdfPath: `${folderPath}/${fileName}`,
           },
         });
@@ -911,6 +914,7 @@ async function handleSubmit() {
       Cost:          cost,
       Vendor:        vendor,
       InvoiceNumber: invoiceNumber,
+      Summary:       _lastExtraction?.summary || '',
       PdfPath:       `${folderPath}/${lastFileName}`,
     };
     try {
@@ -982,6 +986,7 @@ async function handleSubmit() {
               Cost: cost,
               Vendor: vendor,
               InvoiceNumber: invoiceNumber,
+              Summary: _lastExtraction?.summary || '',
               PdfPath: `${folderPath}/${fileName}`,
             },
           });
