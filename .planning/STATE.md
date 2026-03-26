@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 07-03-PLAN.md
-last_updated: "2026-03-19T20:52:53.186Z"
-last_activity: 2026-03-19 — Completed 07-03 Full Unit CRUD
+status: in-progress
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-03-26T22:55:00Z"
+last_activity: 2026-03-26 — Completed 08-01 Worker api-proxy with Claude Haiku Invoice Extraction
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 7
-  total_plans: 20
-  completed_plans: 20
-  percent: 100
+  total_plans: 24
+  completed_plans: 21
+  percent: 88
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Scan an invoice on a phone, have it auto-named and filed in the right OneDrive folder — saves hundreds of hours of manual data entry
-**Current focus:** Phase 7 complete — Dashboard & UX Improvements
+**Current focus:** Phase 8 in progress — Claude Vision Invoice Extraction
 
 ## Current Position
 
-Phase: 7 of 7 (Dashboard & UX Improvements)
-Plan: 4 of 4 in current phase (01, 02, 03, 04 complete)
-Status: Complete
-Last activity: 2026-03-19 — Completed 07-03 Full Unit CRUD
+Phase: 8 of 8 (Claude Vision Invoice Extraction)
+Plan: 1 of 4 in current phase (01 complete)
+Status: In Progress
+Last activity: 2026-03-26 — Completed 08-01 Worker api-proxy with Claude Haiku Invoice Extraction
 
-Progress: [██████████] 100%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -67,12 +67,14 @@ Progress: [██████████] 100%
 | Phase 07 P01 | 4min | 3 tasks | 3 files |
 | Phase 07 P02 | 2min | 2 tasks | 1 files |
 | Phase 07 P03 | 2min | 2 tasks | 3 files |
+| Phase 08 P01 | 8min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
 - Phase 7 added: Dashboard & UX Improvements — fleet summary bar, color-coded milestones, search/filter, dark mode fix, expanded add-unit form, edit unit attributes, delete unit, quick mileage update, fix invoice PDF links, loading skeletons, empty state CTAs, tab scrollbar fix, back link feedback
+- Phase 8 added: Claude Vision Invoice Extraction — replace Tesseract.js with Claude Haiku via Cloudflare Worker, handwriting support, invoice summarization, milestone tag picker with auto-reset
 
 ### Decisions
 
@@ -128,6 +130,11 @@ Recent decisions affecting current work:
 - [Phase 07]: Quick mileage update reuses saveConditionUpdate from unit-detail.js
 - [Phase 07]: Sanitize all appendUnit fields for expanded form CSV integrity
 - [Phase 07]: Delete unit cascade cleanup is non-fatal to prevent partial failure blocking
+- 08-01: worker/package.json changed to type:module to support node:test with ES module Worker
+- 08-01: samsara-proxy.js left intact — user deploys api-proxy and decommissions manually
+- 08-01: Claude model claude-haiku-4-5-20251001 with max_tokens:1024 for invoice extraction
+- 08-01: PDF uses document content block; JPEG uses image content block (both base64)
+- 08-01: JSON parsing tries raw JSON first, falls back to markdown code block regex extraction
 
 ### Pending Todos
 
@@ -154,6 +161,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T20:46:04.694Z
-Stopped at: Completed 07-03-PLAN.md
+Last session: 2026-03-26T22:52:11Z
+Stopped at: Completed 08-01-PLAN.md
 Resume file: None
