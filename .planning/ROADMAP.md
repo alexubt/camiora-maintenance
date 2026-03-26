@@ -130,7 +130,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 5. Dashboard | 1/1 | Complete    | 2026-03-17 |
 | 6. Auth Hardening and PWA Reliability | 1/3 | Complete    | 2026-03-17 |
 | 7. Dashboard & UX Improvements | 0/4 | Complete    | 2026-03-19 |
-| 8. Claude Vision Invoice Extraction | 1/3 | In Progress|  |
+| 8. Claude Vision Invoice Extraction | 2/3 | In Progress|  |
 
 ### Phase 7: Dashboard & UX Improvements
 
@@ -173,7 +173,7 @@ Plans:
   5. On upload, selected milestones are batch-reset in maintenance.csv with a single write
   6. Both camera scans (JPEG) and uploaded PDFs are supported for extraction
   7. Tesseract.js and all spatial scoring code are removed
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 08-01-PLAN.md — Worker rename + /extract-invoice POST route with Claude Haiku API
