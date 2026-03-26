@@ -54,8 +54,8 @@
 - [x] **VIS-01**: Claude Haiku 4.5 extracts invoice fields (unit, date, vendor, cost, invoice#, summary, line items, milestones) via Cloudflare Worker
 - [x] **VIS-02**: Extracted fields auto-fill the upload form (unit dropdown, date, vendor, cost, invoice number)
 - [x] **VIS-03**: Extraction summary and line items displayed on upload form for user review
-- [ ] **VIS-04**: Milestone tag picker pre-selects AI-detected milestones; user can toggle before upload
-- [ ] **VIS-05**: Selected milestones batch-reset in maintenance.csv on upload (single CSV write)
+- [x] **VIS-04**: Milestone tag picker pre-selects AI-detected milestones; user can toggle before upload
+- [x] **VIS-05**: Selected milestones batch-reset in maintenance.csv on upload (single CSV write)
 - [x] **VIS-06**: Both camera scans (JPEG) and uploaded PDFs supported for extraction
 - [x] **VIS-07**: Tesseract.js and spatial scoring code fully removed
 
