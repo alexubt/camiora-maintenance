@@ -119,7 +119,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -130,6 +130,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 5. Dashboard | 1/1 | Complete    | 2026-03-17 |
 | 6. Auth Hardening and PWA Reliability | 1/3 | Complete    | 2026-03-17 |
 | 7. Dashboard & UX Improvements | 0/4 | Complete    | 2026-03-19 |
+| 8. Claude Vision Invoice Extraction | 0/3 | Planned | — |
 
 ### Phase 7: Dashboard & UX Improvements
 
@@ -158,3 +159,23 @@ Plans:
 - [ ] 07-02-PLAN.md — Dashboard UX: fleet summary bar, search/filter, tab-filtered action items, quick mileage update
 - [ ] 07-03-PLAN.md — Unit CRUD: expanded add form, edit attributes, delete unit with CSV cleanup
 - [ ] 07-04-PLAN.md — Invoice PDF fix: authenticated blob fetch for PDF links
+
+### Phase 8: Claude Vision Invoice Extraction
+
+**Goal:** Invoice extraction is powered by Claude Haiku 4.5 Vision — one API call per invoice extracts all metadata, auto-fills the form, detects maintenance milestones, and resets them on upload
+**Depends on:** Phase 7
+**Requirements:** VIS-01, VIS-02, VIS-03, VIS-04, VIS-05, VIS-06, VIS-07
+**Success Criteria** (what must be TRUE):
+  1. A scanned or uploaded invoice triggers a Claude Haiku extraction that returns unit number, date, vendor, cost, invoice number, summary, line items, and detected milestones
+  2. Extracted fields auto-fill the upload form (unit, date, cost, vendor, invoice number)
+  3. Summary and line items are displayed for user review
+  4. A milestone tag picker shows AI-detected milestones pre-selected; user can toggle before upload
+  5. On upload, selected milestones are batch-reset in maintenance.csv with a single write
+  6. Both camera scans (JPEG) and uploaded PDFs are supported for extraction
+  7. Tesseract.js and all spatial scoring code are removed
+**Plans:** 3 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Worker rename + /extract-invoice POST route with Claude Haiku API
+- [ ] 08-02-PLAN.md — Extract client module, upload.js rewire, Tesseract removal
+- [ ] 08-03-PLAN.md — Milestone tag picker UI, batch milestone reset, SW/URL cleanup

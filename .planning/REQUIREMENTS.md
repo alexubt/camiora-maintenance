@@ -49,6 +49,16 @@
 - [x] **INFRA-03**: Offline queue for uploads, sync when reconnected
 - [x] **INFRA-04**: ES module refactor of existing monolith `app.js`
 
+### Vision Extraction (Phase 8)
+
+- [ ] **VIS-01**: Claude Haiku 4.5 extracts invoice fields (unit, date, vendor, cost, invoice#, summary, line items, milestones) via Cloudflare Worker
+- [ ] **VIS-02**: Extracted fields auto-fill the upload form (unit dropdown, date, vendor, cost, invoice number)
+- [ ] **VIS-03**: Extraction summary and line items displayed on upload form for user review
+- [ ] **VIS-04**: Milestone tag picker pre-selects AI-detected milestones; user can toggle before upload
+- [ ] **VIS-05**: Selected milestones batch-reset in maintenance.csv on upload (single CSV write)
+- [ ] **VIS-06**: Both camera scans (JPEG) and uploaded PDFs supported for extraction
+- [ ] **VIS-07**: Tesseract.js and spatial scoring code fully removed
+
 ## v2 Requirements
 
 ### Advanced Scanner
@@ -110,12 +120,19 @@
 | INFRA-01 | Phase 6 | Complete |
 | INFRA-02 | Phase 6 | Complete |
 | INFRA-03 | Phase 6 | Complete |
+| VIS-01 | Phase 8 | Planned |
+| VIS-02 | Phase 8 | Planned |
+| VIS-03 | Phase 8 | Planned |
+| VIS-04 | Phase 8 | Planned |
+| VIS-05 | Phase 8 | Planned |
+| VIS-06 | Phase 8 | Planned |
+| VIS-07 | Phase 8 | Planned |
 
 **Coverage:**
-- v1 requirements: 26 total
-- Mapped to phases: 26
-- Unmapped: 0 ✓
+- v1 requirements: 33 total
+- Mapped to phases: 33
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-16*
-*Last updated: 2026-03-16 after roadmap creation — all requirements mapped*
+*Last updated: 2026-03-26 after Phase 8 planning — VIS-01 through VIS-07 added*
