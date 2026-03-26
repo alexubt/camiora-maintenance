@@ -8,6 +8,8 @@ import { startLogin, signOut, CONFIG, getValidToken } from '../graph/auth.js';
 import { ensureFolder, uploadFile } from '../graph/files.js';
 import { processAndRelease, loadImage } from '../imaging/scanner.js';
 import { extractInvoice } from '../invoice/extract.js';
+import { getMilestonesForCategory } from '../maintenance/milestones.js';
+import { batchMarkDone } from '../invoice/batch-milestone.js';
 import { getBaseName, buildFolderPath, getServiceLabel } from '../invoice/naming.js';
 import { appendInvoiceRecord } from '../invoice/record.js';
 import { enqueueUpload } from '../storage/uploadQueue.js';
@@ -197,6 +199,11 @@ function renderApp() {
           </div>
         </div>
 
+        <div class="field" id="milestoneTagField" style="display:none;">
+          <label>Milestones completed</label>
+          <div class="milestone-chips" style="display:flex;gap:8px;overflow-x:auto;padding:4px 0;flex-wrap:wrap;"></div>
+        </div>
+
         <div class="field">
           <label>Documents</label>
 
@@ -282,7 +289,10 @@ function renderApp() {
     renderAuth();
   });
 
-  container.querySelector('#unitId').addEventListener('change', updateAll);
+  container.querySelector('#unitId').addEventListener('change', (e) => {
+    updateAll();
+    renderMilestoneChips(e.target.value, []);
+  });
   container.querySelector('#serviceType').addEventListener('change', updateAll);
   container.querySelector('#otherText').addEventListener('input', updateAll);
   container.querySelector('#serviceDate').addEventListener('input', updateAll);
@@ -323,6 +333,47 @@ function renderApp() {
       removeFile(parseInt(removeBtn.dataset.index, 10));
     }
   });
+
+  // Milestone chip toggle delegation
+  container.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-action="toggle-milestone"]');
+    if (chip) chip.classList.toggle('selected');
+  });
+}
+
+// ── Milestone tag picker ──────────────────────────────────────────────────────
+
+/**
+ * Render the milestone chip row for the given unit.
+ * AI-detected milestones are pre-selected.
+ * @param {string} unitId - the selected unit ID
+ * @param {string[]} preselected - milestone types to pre-select (from AI extraction)
+ */
+function renderMilestoneChips(unitId, preselected = []) {
+  const field = document.getElementById('milestoneTagField');
+  if (!field) return;
+
+  const chipsEl = field.querySelector('.milestone-chips');
+  if (!chipsEl) return;
+
+  const unit = state.fleet.units.find(u => u.UnitId === unitId);
+  const unitType = unit?.Type || '';
+  const milestones = getMilestonesForCategory(unitType);
+
+  if (!milestones || milestones.length === 0) {
+    field.style.display = 'none';
+    chipsEl.innerHTML = '';
+    return;
+  }
+
+  const preselectedSet = new Set(preselected);
+
+  chipsEl.innerHTML = milestones.map(ms => {
+    const selected = preselectedSet.has(ms.type);
+    return `<button class="milestone-chip${selected ? ' selected' : ''}" data-milestone="${ms.type}" data-action="toggle-milestone">${ms.label}</button>`;
+  }).join('');
+
+  field.style.display = 'block';
 }
 
 // ── Scanner: open camera ─────────────────────────────────────────────────────
@@ -676,6 +727,13 @@ function prefillExtractionFields(data) {
     }
   }
 
+  // ── Milestone tag picker — pre-select AI-detected milestones ─────────────
+  {
+    const unitSel = document.getElementById('unitId');
+    const currentUnitId = unitSel ? unitSel.value : '';
+    renderMilestoneChips(currentUnitId, data.detected_milestones || []);
+  }
+
   // ── Extraction results display panel ─────────────────────────────────────
 
   const box = document.getElementById('extractionResults');
@@ -834,6 +892,22 @@ async function handleSubmit() {
     } catch (csvErr) {
       console.error('CSV append failed:', csvErr);
       showToast('Uploaded - invoice record could not be saved', 'warning');
+    }
+
+    // Batch-reset selected milestone tags (non-fatal — upload already succeeded)
+    try {
+      const selectedTags = [...document.querySelectorAll('.milestone-chip.selected')].map(el => el.dataset.milestone);
+      if (selectedTags.length > 0) {
+        const milestoneToken = await getValidToken();
+        const condRow = state.fleet.condition && state.fleet.condition.find(c => c.UnitId === unitId);
+        const currentMiles = condRow ? (condRow.CurrentMiles || '') : '';
+        if (milestoneToken && state.fleet.maintenancePath) {
+          await batchMarkDone(selectedTags, unitId, date, currentMiles, milestoneToken, state.fleet.maintenancePath);
+        }
+      }
+    } catch (milestoneErr) {
+      console.warn('Milestone reset failed (non-fatal):', milestoneErr);
+      showToast('Uploaded \u2014 milestone update failed, try again', 'warning');
     }
 
     showToast(`${files.length} file${files.length > 1 ? 's' : ''} uploaded`, 'success');

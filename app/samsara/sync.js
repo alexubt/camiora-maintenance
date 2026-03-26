@@ -12,7 +12,7 @@ import { getValidToken } from '../graph/auth.js';
 
 // ── Configuration ──────────────────────────────────────────────────────────
 
-const WORKER_URL = 'https://camiora-samsara-proxy.camiora.workers.dev';
+const WORKER_URL = 'https://camiora-api-proxy.camiora.workers.dev';
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000;  // 5 minutes
 const CHANGE_THRESHOLD = 50;              // miles — skip write if delta below this

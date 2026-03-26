@@ -656,3 +656,29 @@ input:focus, select:focus {
 .invoice-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .invoice-table th { padding: 8px 4px; text-align: left; border-bottom: 2px solid var(--border); }
 .invoice-table td { padding: 8px 4px; border-bottom: 1px solid var(--border); }
+
+/* ── Milestone tag picker chips (Phase 8) ── */
+.milestone-chip {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--text);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  touch-action: manipulation;
+  line-height: 1.5;
+}
+.milestone-chip.selected {
+  background: var(--green-dark);
+  color: #fff;
+  border-color: var(--green-dark);
+}
+@media (prefers-color-scheme: dark) {
+  .milestone-chip.selected {
+    background: var(--green-dark);
+    border-color: var(--green-dark);
+  }
+}

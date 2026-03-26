@@ -1,4 +1,4 @@
-const CACHE = 'camiora-v21';
+const CACHE = 'camiora-v22';
 const STATIC = [
   './',
   './index.html',
@@ -14,10 +14,11 @@ const STATIC = [
   './app/views/dashboard.js',
   './app/views/unit-detail.js',
   './app/imaging/scanner.js',
-  './app/imaging/ocr.js',
   './app/graph/auth.js',
   './app/graph/csv.js',
   './app/graph/files.js',
+  './app/invoice/extract.js',
+  './app/invoice/batch-milestone.js',
   './app/invoice/naming.js',
   './app/invoice/record.js',
   './app/maintenance/schedule.js',
