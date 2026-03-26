@@ -36,17 +36,24 @@ function buildExtractionPrompt(fleet) {
   const roster = Array.isArray(fleet) ? fleet.join(', ') : '';
   return `You are analyzing a fleet maintenance invoice. Extract the following from the document.
 
-CRITICAL — HANDWRITTEN UNIT NUMBER DETECTION:
-Unit numbers are often handwritten on invoices. Handwritten "1"s frequently look like:
-- Capital I (e.g., "II15" is actually "1115")
-- Vertical sticks/lines | (e.g., "||45" is actually "1145")
-- Lowercase L (e.g., "ll22" is actually "1122")
-- A mix of these (e.g., "Il65" is actually "1165")
+CRITICAL — HANDWRITTEN DIGIT RECOGNITION:
+Unit numbers are often handwritten on invoices. Handwriting causes these common OCR confusions:
+- 1 ↔ I, l, |, / (vertical strokes)
+- 0 ↔ O, o, Q, D (round shapes)
+- 2 ↔ Z, z (angular similarity)
+- 5 ↔ S, s (curved similarity)
+- 6 ↔ G, b (loop shapes)
+- 8 ↔ B (double loop)
+- 9 ↔ g, q (descender loop)
+- 4 ↔ A, H (angular strokes)
+- 7 ↔ T, J (top bar + stroke)
+- 3 ↔ E (mirrored curves)
 
-When you see any sequence of I, l, |, or 1 characters in handwriting, treat ALL of them as the digit "1" and match against the fleet roster below. For example:
-- "IIII" or "llll" → try "1111"
-- "II65" or "Il65" → try "1165"
-- "II08" → try "1108"
+When reading handwritten numbers, normalize ALL ambiguous characters to their digit equivalent and match against the fleet roster. Examples:
+- "II65" or "Il65" → 1165
+- "IIOB" → 1108
+- "OZ34" → 0234
+- "l1S2" → 1152
 
 Fleet roster (match unit number against these): [${roster}]
 Only return a complete, confident match — do not guess partial numbers.
