@@ -36,7 +36,19 @@ function buildExtractionPrompt(fleet) {
   const roster = Array.isArray(fleet) ? fleet.join(', ') : '';
   return `You are analyzing a fleet maintenance invoice. Extract the following from the document.
 
-Match the unit/truck/trailer number against this fleet roster: [${roster}]
+CRITICAL — HANDWRITTEN UNIT NUMBER DETECTION:
+Unit numbers are often handwritten on invoices. Handwritten "1"s frequently look like:
+- Capital I (e.g., "II15" is actually "1115")
+- Vertical sticks/lines | (e.g., "||45" is actually "1145")
+- Lowercase L (e.g., "ll22" is actually "1122")
+- A mix of these (e.g., "Il65" is actually "1165")
+
+When you see any sequence of I, l, |, or 1 characters in handwriting, treat ALL of them as the digit "1" and match against the fleet roster below. For example:
+- "IIII" or "llll" → try "1111"
+- "II65" or "Il65" → try "1165"
+- "II08" → try "1108"
+
+Fleet roster (match unit number against these): [${roster}]
 Only return a complete, confident match — do not guess partial numbers.
 
 Map invoice descriptions to these milestone types where applicable:
