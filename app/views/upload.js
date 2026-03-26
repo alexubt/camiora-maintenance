@@ -45,11 +45,10 @@ export function refreshUnitSelect() {
   const sel = document.getElementById('unitId');
   if (!sel) return;  // upload view not rendered
   const current = sel.value;
-  sel.innerHTML = state.fleet.units.length
-    ? state.fleet.units.map(u =>
-        `<option value="${u.UnitId}"${u.UnitId === current ? ' selected' : ''}>${u.UnitId}</option>`
-      ).join('')
-    : '<option value="">Loading units...</option>';
+  const unitOpts = state.fleet.units.map(u =>
+    `<option value="${u.UnitId}"${u.UnitId === current ? ' selected' : ''}>${u.UnitId}</option>`
+  ).join('');
+  sel.innerHTML = `<option value="">Select unit…</option>${unitOpts}`;
   // Show/update unit detail link
   const unitLink = document.getElementById('unitDetailLink');
   if (unitLink && state.fleet.units.length) {
@@ -137,11 +136,12 @@ function renderApp() {
           <div style="display:flex;align-items:center;gap:8px;">
             <div class="select-wrap" style="flex:1;">
               <select id="unitId">
+                <option value="">Select unit…</option>
                 ${state.fleet.units.length
                   ? state.fleet.units.map(u =>
                       `<option value="${u.UnitId}">${u.UnitId}</option>`
                     ).join('')
-                  : '<option value="">Loading units...</option>'
+                  : ''
                 }
               </select>
             </div>
@@ -676,23 +676,25 @@ function prefillExtractionFields(data) {
   // Unit number — match against fleet roster
   if (data.unit_number) {
     const sel = document.getElementById('unitId');
-    if (sel && !sel.value) {
-      // Try exact match first, then partial
+    if (sel) {
       const match = state.fleet.units.find(u =>
-        u.UnitId === data.unit_number
+        u.UnitId === String(data.unit_number)
       ) || state.fleet.units.find(u =>
-        u.UnitId && u.UnitId.includes(data.unit_number)
+        u.UnitId && u.UnitId.includes(String(data.unit_number))
       );
-      if (match) sel.value = match.UnitId;
+      if (match) {
+        sel.value = match.UnitId;
+        // Update the "View unit" link
+        const link = document.getElementById('unitDetailLink');
+        if (link) { link.href = `#unit?id=${encodeURIComponent(match.UnitId)}`; link.style.display = ''; }
+      }
     }
   }
 
   // Date — normalize to ISO format
   if (data.date) {
     const dateInput = document.getElementById('serviceDate');
-    if (dateInput && !dateInput.value) {
-      // data.date should already be YYYY-MM-DD from Claude
-      // Normalize US slash dates just in case
+    if (dateInput) {
       let isoDate = data.date;
       const slashMatch = data.date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
       if (slashMatch) {
@@ -706,24 +708,53 @@ function prefillExtractionFields(data) {
   // Cost
   if (data.total_cost != null) {
     const costInput = document.getElementById('invoiceCost');
-    if (costInput && !costInput.value) {
-      costInput.value = String(data.total_cost);
-    }
+    if (costInput) costInput.value = String(data.total_cost);
   }
 
   // Vendor
   if (data.vendor) {
     const vendorInput = document.getElementById('invoiceVendor');
-    if (vendorInput && !vendorInput.value) {
-      vendorInput.value = data.vendor;
-    }
+    if (vendorInput) vendorInput.value = data.vendor;
   }
 
   // Invoice number
   if (data.invoice_number) {
     const numInput = document.getElementById('invoiceNumber');
-    if (numInput && !numInput.value) {
-      numInput.value = data.invoice_number;
+    if (numInput) numInput.value = data.invoice_number;
+  }
+
+  // Service type — map Claude's detected milestones to the select dropdown
+  if (data.detected_milestones?.length) {
+    const svcSel = document.getElementById('serviceType');
+    if (svcSel) {
+      // Map milestone types to select option values
+      const milestoneToService = {
+        'PM': 'pm-service',
+        'oil-change': 'oil-change',
+        'brake-inspection': 'brake-inspection',
+        'dot-inspection': 'dot-inspection',
+        'engine-repair': 'engine-repair',
+        'transmission-oil': 'transmission',
+        'differential-oil': 'oil-change',
+        'electrical': 'electrical',
+        'ac-service': 'ac-service',
+      };
+      // Pick the first matching service type for the dropdown
+      for (const ms of data.detected_milestones) {
+        const svcVal = milestoneToService[ms];
+        if (svcVal && svcSel.querySelector(`option[value="${svcVal}"]`)) {
+          svcSel.value = svcVal;
+          break;
+        }
+      }
+      // If multiple milestones detected but no dropdown match, use "other" with summary
+      if (!svcSel.value && data.summary) {
+        svcSel.value = 'other';
+        const otherWrap = document.getElementById('otherWrap');
+        const otherText = document.getElementById('otherText');
+        if (otherWrap) otherWrap.style.display = '';
+        if (otherText) otherText.value = data.detected_milestones.join(', ');
+      }
     }
   }
 
