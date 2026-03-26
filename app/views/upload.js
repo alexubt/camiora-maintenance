@@ -7,7 +7,7 @@ import { state } from '../state.js';
 import { startLogin, signOut, CONFIG, getValidToken } from '../graph/auth.js';
 import { ensureFolder, uploadFile } from '../graph/files.js';
 import { processAndRelease, loadImage } from '../imaging/scanner.js';
-import { runOCR } from '../imaging/ocr.js';
+import { extractInvoice } from '../invoice/extract.js';
 import { getBaseName, buildFolderPath, getServiceLabel } from '../invoice/naming.js';
 import { appendInvoiceRecord } from '../invoice/record.js';
 import { enqueueUpload } from '../storage/uploadQueue.js';
@@ -184,6 +184,19 @@ function renderApp() {
           </div>
         </div>
 
+        <div class="row">
+          <div class="field">
+            <label>Vendor (opt.)</label>
+            <input type="text" id="invoiceVendor" placeholder="e.g. Fleet Works"
+              autocorrect="off"/>
+          </div>
+          <div class="field">
+            <label>Invoice # (opt.)</label>
+            <input type="text" id="invoiceNumber" placeholder="e.g. INV-001"
+              autocorrect="off" autocapitalize="none"/>
+          </div>
+        </div>
+
         <div class="field">
           <label>Documents</label>
 
@@ -228,19 +241,15 @@ function renderApp() {
           <div class="file-list" id="fileList"></div>
         </div>
 
-        <div id="ocrResults" class="ocr-results" style="display:none;">
-          <div class="ocr-results-header">
+        <div id="extractionResults" class="extraction-results" style="display:none;">
+          <div class="extraction-results-header">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
-            Detected from scan
+            <span id="extractionStatusText">Extracting invoice data…</span>
           </div>
-          <div id="ocrResultRows"></div>
-          <details id="ocrRawDetails" style="margin-top:8px;display:none;">
-            <summary style="font-size:12px;color:var(--text-2);cursor:pointer;padding:4px 0;">Show raw OCR data</summary>
-            <pre id="ocrRawText" style="margin:8px 0 0;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow-y:auto;color:var(--text);font-family:monospace;"></pre>
-          </details>
+          <div id="extractionBody"></div>
         </div>
 
         <div id="previewBox" class="preview-box" style="display:none;">
@@ -278,6 +287,8 @@ function renderApp() {
   container.querySelector('#otherText').addEventListener('input', updateAll);
   container.querySelector('#serviceDate').addEventListener('input', updateAll);
   container.querySelector('#invoiceCost').addEventListener('input', updateAll);
+  container.querySelector('#invoiceVendor').addEventListener('input', updateAll);
+  container.querySelector('#invoiceNumber').addEventListener('input', updateAll);
 
   container.querySelector('#scanZone').addEventListener('click', openCamera);
   container.querySelector('#cameraInput').addEventListener('change', (e) => {
@@ -334,15 +345,12 @@ async function handleCameraCapture(input) {
 
   try {
     const img = await loadImage(file);
-    const { scannedBlob, ocrBlob } = await processAndRelease(img);
+    const { scannedBlob } = await processAndRelease(img);
     state.scanPages.push(scannedBlob);
     renderScanPages();
     await buildPdfFromPages();
-
-    // Run OCR on the lighter grayscale version (non-blocking)
-    runOCR(ocrBlob).then(fields => {
-      if (fields) prefillFormFields(fields);
-    }).catch(err => console.error('OCR failed:', err));
+    // Extraction fires after PDF is assembled (non-blocking)
+    triggerExtractionFromScan();
   } catch (err) {
     console.error('Scan error:', err);
     showToast('Failed to process image', 'error');
@@ -350,6 +358,26 @@ async function handleCameraCapture(input) {
     zone.innerHTML = origHTML;
     zone.style.pointerEvents = '';
   }
+}
+
+/**
+ * Run extraction on the assembled scanned PDF (the last entry in files[] with
+ * name 'scanned-document.pdf'). Non-blocking — form fields auto-fill on success.
+ */
+function triggerExtractionFromScan() {
+  const pdfFile = files.find(f => f.name === 'scanned-document.pdf');
+  if (!pdfFile) return;
+
+  const fleetIds = state.fleet.units.map(u => u.UnitId).filter(Boolean);
+  showExtractionLoading();
+
+  extractInvoice(pdfFile, 'application/pdf', fleetIds)
+    .then(data => prefillExtractionFields(data))
+    .catch(err => {
+      console.error('Extraction failed:', err);
+      hideExtractionResults();
+      showToast('Auto-fill unavailable \u2014 fill fields manually', 'error');
+    });
 }
 
 // Track blob object URLs so we can revoke them on re-render (prevent memory leaks)
@@ -463,74 +491,21 @@ function handleFiles(newFiles) {
   renderFileList();
   updateAll();
 
-  // Run OCR on the first added file (best-effort, non-blocking)
+  // Run extraction on the first added file (best-effort, non-blocking)
   const first = newFiles[0];
   if (first) {
-    ocrFromFile(first).catch(err => console.error('File OCR failed:', err));
+    const fleetIds = state.fleet.units.map(u => u.UnitId).filter(Boolean);
+    const mimeType = first.type || 'application/pdf';
+    showExtractionLoading();
+
+    extractInvoice(first, mimeType, fleetIds)
+      .then(data => prefillExtractionFields(data))
+      .catch(err => {
+        console.error('Extraction failed:', err);
+        hideExtractionResults();
+        showToast('Auto-fill unavailable \u2014 fill fields manually', 'error');
+      });
   }
-}
-
-/**
- * Extract an image from a file (PDF or image) and run OCR on it.
- * For PDFs: renders the first page via pdf.js.
- * For images: uses the file directly.
- */
-async function ocrFromFile(file) {
-  let ocrBlob;
-
-  if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-    ocrBlob = await renderPdfPageToBlob(file);
-  } else if (file.type.startsWith('image/')) {
-    // For image files that weren't camera-captured (e.g. picked from gallery)
-    const img = await loadImage(file);
-    const { ocrBlob: blob } = await processAndRelease(img);
-    ocrBlob = blob;
-  } else {
-    return; // unsupported file type
-  }
-
-  if (!ocrBlob) return;
-  const fields = await runOCR(ocrBlob);
-  if (fields) prefillFormFields(fields);
-}
-
-/**
- * Render the first page of a PDF to a JPEG blob for OCR.
- * Lazy-loads pdf.js from CDN on first call.
- */
-let _pdfjsLib = null;
-
-async function renderPdfPageToBlob(file) {
-  // Lazy-load pdf.js via dynamic import
-  if (!_pdfjsLib) {
-    _pdfjsLib = await import(/* webpackIgnore: true */ 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.min.mjs');
-    _pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.worker.min.mjs';
-  }
-
-  const pdfjsLib = _pdfjsLib;
-
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const page = await pdf.getPage(1);
-
-  // Render at 1.5x scale for good OCR quality without being too large
-  const viewport = page.getViewport({ scale: 1.5 });
-  const canvas = document.createElement('canvas');
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
-  const ctx = canvas.getContext('2d');
-
-  await page.render({ canvasContext: ctx, viewport }).promise;
-
-  // Convert to grayscale blob for OCR
-  ctx.filter = 'grayscale(1) contrast(1.3)';
-  ctx.drawImage(canvas, 0, 0);
-
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
-  canvas.width = 0;
-  canvas.height = 0;
-
-  return blob;
 }
 
 function removeFile(i) {
@@ -619,6 +594,140 @@ function updateAll() {
   renderFileList();
 }
 
+// ── Claude extraction results display ─────────────────────────────────────────
+
+function showExtractionLoading() {
+  const box = document.getElementById('extractionResults');
+  const statusText = document.getElementById('extractionStatusText');
+  const body = document.getElementById('extractionBody');
+  if (!box) return;
+  if (statusText) statusText.textContent = 'Extracting invoice data\u2026';
+  if (body) body.innerHTML = '<div class="extraction-spinner"><div class="scan-spinner"></div></div>';
+  box.style.display = 'block';
+}
+
+function hideExtractionResults() {
+  const box = document.getElementById('extractionResults');
+  if (box) box.style.display = 'none';
+}
+
+/**
+ * Fill form fields from Claude extraction result (only empty fields).
+ * Displays summary, line items, and cost breakdown in the extraction results panel.
+ *
+ * @param {object} data - Extraction result from Worker
+ */
+function prefillExtractionFields(data) {
+  if (!data) return;
+
+  // ── Auto-fill form fields (never overwrite user input) ────────────────────
+
+  // Unit number — match against fleet roster
+  if (data.unit_number) {
+    const sel = document.getElementById('unitId');
+    if (sel && !sel.value) {
+      // Try exact match first, then partial
+      const match = state.fleet.units.find(u =>
+        u.UnitId === data.unit_number
+      ) || state.fleet.units.find(u =>
+        u.UnitId && u.UnitId.includes(data.unit_number)
+      );
+      if (match) sel.value = match.UnitId;
+    }
+  }
+
+  // Date — normalize to ISO format
+  if (data.date) {
+    const dateInput = document.getElementById('serviceDate');
+    if (dateInput && !dateInput.value) {
+      // data.date should already be YYYY-MM-DD from Claude
+      // Normalize US slash dates just in case
+      let isoDate = data.date;
+      const slashMatch = data.date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (slashMatch) {
+        const [, m, d, y] = slashMatch;
+        isoDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      }
+      dateInput.value = isoDate;
+    }
+  }
+
+  // Cost
+  if (data.total_cost != null) {
+    const costInput = document.getElementById('invoiceCost');
+    if (costInput && !costInput.value) {
+      costInput.value = String(data.total_cost);
+    }
+  }
+
+  // Vendor
+  if (data.vendor) {
+    const vendorInput = document.getElementById('invoiceVendor');
+    if (vendorInput && !vendorInput.value) {
+      vendorInput.value = data.vendor;
+    }
+  }
+
+  // Invoice number
+  if (data.invoice_number) {
+    const numInput = document.getElementById('invoiceNumber');
+    if (numInput && !numInput.value) {
+      numInput.value = data.invoice_number;
+    }
+  }
+
+  // ── Extraction results display panel ─────────────────────────────────────
+
+  const box = document.getElementById('extractionResults');
+  const statusText = document.getElementById('extractionStatusText');
+  const body = document.getElementById('extractionBody');
+  if (!box || !body) return;
+
+  if (statusText) statusText.textContent = 'Detected from invoice';
+
+  const parts = [];
+
+  // Summary
+  if (data.summary) {
+    parts.push(`<div class="extraction-summary">${escapeHtml(data.summary)}</div>`);
+  }
+
+  // Low confidence warning
+  if (typeof data.confidence === 'number' && data.confidence < 0.7) {
+    parts.push(`<div class="extraction-warn">Low confidence \u2014 please verify fields</div>`);
+  }
+
+  // Cost breakdown
+  if (data.labor_cost != null || data.parts_cost != null) {
+    const rows = [];
+    if (data.labor_cost != null) rows.push(`<span>Labor: $${data.labor_cost.toFixed(2)}</span>`);
+    if (data.parts_cost  != null) rows.push(`<span>Parts: $${data.parts_cost.toFixed(2)}</span>`);
+    if (data.total_cost  != null) rows.push(`<span>Total: $${data.total_cost.toFixed(2)}</span>`);
+    parts.push(`<div class="extraction-breakdown">${rows.join('<span class="extraction-sep"> · </span>')}</div>`);
+  }
+
+  // Line items
+  if (data.line_items && data.line_items.length) {
+    const items = data.line_items.map(item =>
+      `<li><span class="li-desc">${escapeHtml(item.description)}</span><span class="li-amount">$${Number(item.amount).toFixed(2)}</span></li>`
+    ).join('');
+    parts.push(`<ul class="extraction-line-items">${items}</ul>`);
+  }
+
+  body.innerHTML = parts.join('') || '<div class="extraction-empty">No details extracted</div>';
+  box.style.display = 'block';
+
+  updateAll();
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 // ── OneDrive upload (submit handler) ─────────────────────────────────────────
 async function handleSubmit() {
   if (state.isUploading) return;
@@ -632,6 +741,8 @@ async function handleSubmit() {
   );
   const date = document.getElementById('serviceDate').value;
   const cost = (document.getElementById('invoiceCost')?.value || '').trim().replace(/,/g, '');
+  const vendor = (document.getElementById('invoiceVendor')?.value || '').trim();
+  const invoiceNumber = (document.getElementById('invoiceNumber')?.value || '').trim();
   const docType = getDocType(svc);
   const unitType = getUnitType(unitId);
   const folderPath = buildFolderPath(unitId, { type: unitType, date, docType });
@@ -653,6 +764,8 @@ async function handleSubmit() {
             Date: date,
             Type: svc,
             Cost: cost,
+            Vendor: vendor,
+            InvoiceNumber: invoiceNumber,
             PdfPath: `${folderPath}/${fileName}`,
           },
         });
@@ -668,8 +781,9 @@ async function handleSubmit() {
     document.getElementById('invoiceCost').value = '';
     document.getElementById('serviceType').value = '';
     document.getElementById('serviceDate').value = new Date().toISOString().split('T')[0];
-    const ocrBox = document.getElementById('ocrResults');
-    if (ocrBox) ocrBox.style.display = 'none';
+    document.getElementById('invoiceVendor').value = '';
+    document.getElementById('invoiceNumber').value = '';
+    hideExtractionResults();
     state.isUploading = false;
     updateAll();
     return;
@@ -701,12 +815,14 @@ async function handleSubmit() {
 
     // Append invoice record (non-fatal if this fails)
     const invoiceRow = {
-      InvoiceId: Date.now().toString(36),
-      UnitId:    unitId,
-      Date:      date,
-      Type:      svc,
-      Cost:      cost,
-      PdfPath:   `${folderPath}/${lastFileName}`,
+      InvoiceId:     Date.now().toString(36),
+      UnitId:        unitId,
+      Date:          date,
+      Type:          svc,
+      Cost:          cost,
+      Vendor:        vendor,
+      InvoiceNumber: invoiceNumber,
+      PdfPath:       `${folderPath}/${lastFileName}`,
     };
     try {
       const recToken = await getValidToken();
@@ -733,8 +849,9 @@ async function handleSubmit() {
       document.getElementById('invoiceCost').value = '';
       document.getElementById('serviceType').value = '';
       document.getElementById('serviceDate').value = new Date().toISOString().split('T')[0];
-      const ocrBox = document.getElementById('ocrResults');
-      if (ocrBox) ocrBox.style.display = 'none';
+      document.getElementById('invoiceVendor').value = '';
+      document.getElementById('invoiceNumber').value = '';
+      hideExtractionResults();
       state.isUploading = false;
       btn.style.background = '';
       updateAll();
@@ -758,6 +875,8 @@ async function handleSubmit() {
               Date: date,
               Type: svc,
               Cost: cost,
+              Vendor: vendor,
+              InvoiceNumber: invoiceNumber,
               PdfPath: `${folderPath}/${fileName}`,
             },
           });
@@ -768,6 +887,8 @@ async function handleSubmit() {
         document.getElementById('invoiceCost').value = '';
         document.getElementById('serviceType').value = '';
         document.getElementById('serviceDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('invoiceVendor').value = '';
+        document.getElementById('invoiceNumber').value = '';
         state.isUploading = false;
         updateAll();
         return;
@@ -787,104 +908,6 @@ async function handleSubmit() {
     state.isUploading = false;
     updateAll();
   }
-}
-
-// ── Service type display names ───────────────────────────────────────────────
-const svcDisplayNames = {
-  'oil-change': 'Oil change',
-  'tire-rotation': 'Tire rotation',
-  'brake-inspection': 'Brake inspection',
-  'dot-inspection': 'DOT inspection',
-  'pm-service': 'PM service',
-  'engine-repair': 'Engine repair',
-  'transmission': 'Transmission',
-  'electrical': 'Electrical',
-  'ac-service': 'A/C service',
-};
-
-// ── OCR pre-fill with fleet validation ──────────────────────────────────────
-function prefillFormFields(fields) {
-  const rows = [];
-
-  // --- Unit validation ---
-  if (fields.unitNumber) {
-    const sel = document.getElementById('unitId');
-    const match = state.fleet.units.find(u =>
-      u.UnitId && u.UnitId.includes(fields.unitNumber)
-    );
-
-    if (match) {
-      // Found in fleet list — auto-select
-      if (sel) sel.value = match.UnitId;
-      rows.push(`<div class="ocr-row ocr-found">
-        <span class="ocr-label">Unit</span>
-        <span class="ocr-value">${match.UnitId}</span>
-        <span class="ocr-badge ocr-badge-ok">Matched</span>
-      </div>`);
-    } else {
-      // Not found — show warning, user must select manually
-      rows.push(`<div class="ocr-row ocr-missing">
-        <span class="ocr-label">Unit</span>
-        <span class="ocr-value">${fields.unitRaw || fields.unitNumber}</span>
-        <span class="ocr-badge ocr-badge-warn">Not in unit list — please select</span>
-      </div>`);
-    }
-  }
-
-  // --- Date ---
-  if (fields.date) {
-    // Normalize US slash dates to ISO format for the date input
-    let isoDate = fields.date;
-    const slashMatch = fields.date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (slashMatch) {
-      const [, m, d, y] = slashMatch;
-      isoDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-    }
-
-    const dateInput = document.getElementById('serviceDate');
-    if (dateInput && !dateInput.value) {
-      dateInput.value = isoDate;
-    }
-
-    rows.push(`<div class="ocr-row ocr-found">
-      <span class="ocr-label">Date</span>
-      <span class="ocr-value">${fields.date}</span>
-      <span class="ocr-badge ocr-badge-ok">Applied</span>
-    </div>`);
-  }
-
-  // --- Service type ---
-  if (fields.serviceType) {
-    const svcSelect = document.getElementById('serviceType');
-    if (svcSelect && !svcSelect.value) {
-      svcSelect.value = fields.serviceType;
-    }
-
-    const displayName = svcDisplayNames[fields.serviceType] || fields.serviceType;
-    rows.push(`<div class="ocr-row ocr-found">
-      <span class="ocr-label">Service</span>
-      <span class="ocr-value">${displayName}</span>
-      <span class="ocr-badge ocr-badge-ok">Applied</span>
-    </div>`);
-  }
-
-  // Show the OCR results banner
-  const ocrBox = document.getElementById('ocrResults');
-  const ocrRowsEl = document.getElementById('ocrResultRows');
-  if (ocrBox && ocrRowsEl && rows.length) {
-    ocrRowsEl.innerHTML = rows.join('');
-    ocrBox.style.display = 'block';
-  }
-
-  // Populate raw OCR data blob
-  const rawDetails = document.getElementById('ocrRawDetails');
-  const rawPre = document.getElementById('ocrRawText');
-  if (rawDetails && rawPre && fields.rawText) {
-    rawPre.textContent = fields.rawText;
-    rawDetails.style.display = 'block';
-  }
-
-  updateAll();
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
