@@ -226,7 +226,8 @@ function renderApp() {
           <div class="scan-pages" id="scanPages"></div>
 
           <div id="scanActions" class="scan-actions" style="display:none;">
-            <button class="scan-add-btn" data-action="addmore">+ Add another page</button>
+            <button class="scan-add-btn" data-action="addmore">+ Add page</button>
+            <button class="scan-done-btn" data-action="scandone" style="background:var(--green-dark);color:#fff;border:none;padding:8px 16px;border-radius:var(--radius);font-size:14px;cursor:pointer;">Done - Extract</button>
           </div>
 
           <div class="separator" id="orSeparator" style="display:none;">
@@ -311,6 +312,9 @@ function renderApp() {
   });
 
   container.querySelector('[data-action="addmore"]').addEventListener('click', addMorePages);
+  container.querySelector('[data-action="scandone"]').addEventListener('click', () => {
+    triggerExtractionFromScan();
+  });
 
   container.querySelector('#submitBtn').addEventListener('click', handleSubmit);
 
@@ -401,8 +405,6 @@ async function handleCameraCapture(input) {
     state.scanPages.push(scannedBlob);
     renderScanPages();
     await buildPdfFromPages();
-    // Extraction fires after PDF is assembled (non-blocking)
-    triggerExtractionFromScan();
   } catch (err) {
     console.error('Scan error:', err);
     showToast('Failed to process image', 'error');
