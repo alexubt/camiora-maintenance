@@ -6,15 +6,35 @@
 import { CONFIG } from '../graph/auth.js';
 
 /**
- * Build base filename: UNIT_DATE_TYPE format.
+ * Sanitize a string for use in a filename — strip/replace unsafe characters.
+ * @param {string} str
+ * @returns {string}
+ */
+function sanitizeForFilename(str) {
+  return (str || '').trim()
+    .replace(/[\/\\:*?"<>|,&]/g, '')  // strip filesystem-unsafe chars + commas + ampersand
+    .replace(/\s+/g, '-')            // spaces to hyphens
+    .substring(0, 40);               // cap length
+}
+
+/**
+ * Build base filename: UNIT_DATE_TYPE_VENDOR_INVNR format.
  * @param {string} unitId - e.g. 'TR-042'
  * @param {string} svc - service type slug, e.g. 'oil-change'
  * @param {string} date - ISO date string, e.g. '2026-03-16'
- * @returns {string|null} e.g. 'TR-042_2026-03-16_oil-change', or null if any arg missing
+ * @param {Object} [opts]
+ * @param {string} [opts.vendor] - vendor name from extraction
+ * @param {string} [opts.invoiceNumber] - invoice number from extraction
+ * @returns {string|null} e.g. 'TR-042_2026-03-16_oil-change_KY-Truck-Repair_INV-2086', or null if any required arg missing
  */
-export function getBaseName(unitId, svc, date) {
+export function getBaseName(unitId, svc, date, opts = {}) {
   if (!unitId || !svc || !date) return null;
-  return `${unitId}_${date}_${svc}`;
+  let name = `${unitId}_${date}_${svc}`;
+  const vendor = sanitizeForFilename(opts.vendor);
+  const invNr = sanitizeForFilename(opts.invoiceNumber);
+  if (vendor) name += `_${vendor}`;
+  if (invNr) name += `_${invNr}`;
+  return name;
 }
 
 /**

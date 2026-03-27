@@ -11,6 +11,27 @@ describe('getBaseName', () => {
     assert.equal(getBaseName('TL-017', 'dot-inspection', '2026-03-10'), 'TL-017_2026-03-10_dot-inspection');
   });
 
+  it('appends vendor and invoice number when provided', () => {
+    assert.equal(
+      getBaseName('1115', 'pm-service', '2026-03-20', { vendor: 'K&Y Truck Repair', invoiceNumber: 'INV-2086' }),
+      '1115_2026-03-20_pm-service_KY-Truck-Repair_INV-2086'
+    );
+  });
+
+  it('sanitizes unsafe characters from vendor', () => {
+    assert.equal(
+      getBaseName('1108', 'oil-change', '2026-01-15', { vendor: 'M&S, Inc.', invoiceNumber: '' }),
+      '1108_2026-01-15_oil-change_MS-Inc.'
+    );
+  });
+
+  it('omits vendor and invoice number when empty', () => {
+    assert.equal(
+      getBaseName('1108', 'pm-service', '2026-03-20', { vendor: '', invoiceNumber: '' }),
+      '1108_2026-03-20_pm-service'
+    );
+  });
+
   it('returns null for missing unitId', () => {
     assert.equal(getBaseName('', 'oil-change', '2026-03-16'), null);
   });

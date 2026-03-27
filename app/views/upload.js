@@ -599,7 +599,9 @@ function getBaseNameFromForm(i) {
   );
   const date = document.getElementById('serviceDate')?.value || '';
   if (!unitId || !svc || !date) return null;
-  const name = getBaseName(unitId, svc, date);
+  const vendor = document.getElementById('invoiceVendor')?.value || '';
+  const invoiceNumber = document.getElementById('invoiceNumber')?.value || '';
+  const name = getBaseName(unitId, svc, date, { vendor, invoiceNumber });
   if (files.length > 1 && name) return `${name}-${i + 1}`;
   return name;
 }
@@ -629,7 +631,7 @@ function updateAll() {
     if (unitId && svc && date) {
       const extra = files.length > 1 ? ` (+${files.length - 1} more)` : '';
       document.getElementById('previewName').textContent =
-        `${getBaseName(unitId, svc, date)}${files.length > 1 ? '-1' : ''}.pdf${extra}`;
+        `${getBaseName(unitId, svc, date, { vendor: document.getElementById('invoiceVendor')?.value, invoiceNumber: document.getElementById('invoiceNumber')?.value })}${files.length > 1 ? '-1' : ''}.pdf${extra}`;
       const docType = getDocType(svc);
       const unitType = getUnitType(unitId);
       document.getElementById('previewPath').textContent =
