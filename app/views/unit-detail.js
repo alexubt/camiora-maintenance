@@ -441,7 +441,13 @@ function renderUnitPage(container, unitId, data) {
                   <td>${escapeHtml(inv.Type)}</td>
                   <td>${inv.Cost ? '$' + escapeHtml(inv.Cost) : '—'}</td>
                   <td>${inv.PdfPath ? `<a href="#" data-action="view-pdf" data-pdf-path="${escapeHtml(inv.PdfPath)}" style="color:var(--green-dark);text-decoration:none;">View</a>` : '—'}</td>
-                </tr>`).join('')}
+                </tr>${(inv.Vendor || inv.InvoiceNumber || inv.Summary) ? `<tr class="invoice-detail-row">
+                  <td colspan="4" style="padding:2px 4px 8px;">
+                    ${inv.Vendor ? `<span class="invoice-detail-item"><strong>Vendor:</strong> ${escapeHtml(inv.Vendor)}</span>` : ''}
+                    ${inv.InvoiceNumber ? `<span class="invoice-detail-item"><strong>Inv#:</strong> ${escapeHtml(inv.InvoiceNumber)}</span>` : ''}
+                    ${inv.Summary ? `<span class="invoice-detail-item"><strong>Summary:</strong> ${escapeHtml(inv.Summary)}</span>` : ''}
+                  </td>
+                </tr>` : ''}`).join('')}
               </tbody>
             </table>
           </div>

@@ -656,6 +656,11 @@ input:focus, select:focus {
 .invoice-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .invoice-table th { padding: 8px 4px; text-align: left; border-bottom: 2px solid var(--border); }
 .invoice-table td { padding: 8px 4px; border-bottom: 1px solid var(--border); }
+.invoice-detail-row td { font-size: 12px; color: var(--text-2); border-bottom: 1px solid var(--border); }
+.invoice-detail-row + tr td { border-top: none; }
+.invoice-detail-item { margin-right: 12px; display: inline-block; white-space: nowrap; }
+.invoice-detail-item:last-child { white-space: normal; }
+tr:has(+ .invoice-detail-row) td { border-bottom: none; }
 
 /* ── Milestone tag picker chips (Phase 8) ── */
 .milestone-chip {
