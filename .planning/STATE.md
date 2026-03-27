@@ -165,9 +165,10 @@ Recent decisions affecting current work:
 |---|-------------|------|--------|-----------|
 | 1 | Maintenance milestones and tire monitor on unit detail page | 2026-03-17 | 50babbe | [1-maintenance-milestones-and-tire-monitor](./quick/1-maintenance-milestones-and-tire-monitor/) |
 | 2 | Scanbot-style scanner review screen with draggable corners and filter picker | 2026-03-18 | 78eeb16 | [2-scanbot-style-scanner-review-screen](./quick/2-scanbot-style-scanner-review-screen/) |
+| 3 | Display full invoice details (Vendor, Invoice#, Summary) on unit detail page | 2026-03-26 | a5ad688 | [3-display-full-invoice-details-on-unit-det](./quick/3-display-full-invoice-details-on-unit-det/) |
 
 ## Session Continuity
 
 Last session: 2026-03-26T23:16:03.947Z
-Stopped at: Completed 08-03-PLAN.md
+Stopped at: Completed quick-3 Display full invoice details on unit detail page
 Resume file: None
