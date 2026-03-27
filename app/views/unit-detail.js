@@ -442,10 +442,12 @@ function renderUnitPage(container, unitId, data) {
                   <td>${inv.Cost ? '$' + escapeHtml(inv.Cost) : '—'}</td>
                   <td>${inv.PdfPath ? `<a href="#" data-action="view-pdf" data-pdf-path="${escapeHtml(inv.PdfPath)}" style="color:var(--green-dark);text-decoration:none;">View</a>` : '—'}</td>
                 </tr>${(inv.Vendor || inv.InvoiceNumber || inv.Summary) ? `<tr class="invoice-detail-row">
-                  <td colspan="4" style="padding:2px 4px 8px;">
-                    ${inv.Vendor ? `<span class="invoice-detail-item"><strong>Vendor:</strong> ${escapeHtml(inv.Vendor)}</span>` : ''}
-                    ${inv.InvoiceNumber ? `<span class="invoice-detail-item"><strong>Inv#:</strong> ${escapeHtml(inv.InvoiceNumber)}</span>` : ''}
-                    ${inv.Summary ? `<span class="invoice-detail-item"><strong>Summary:</strong> ${escapeHtml(inv.Summary)}</span>` : ''}
+                  <td colspan="4" style="padding:4px 8px 10px;border-top:none;">
+                    <div style="display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--text-2);">
+                      ${inv.Vendor ? `<div><span style="color:var(--text-3);">Vendor</span> ${escapeHtml(inv.Vendor)}</div>` : ''}
+                      ${inv.InvoiceNumber ? `<div><span style="color:var(--text-3);">Inv#</span> ${escapeHtml(inv.InvoiceNumber)}</div>` : ''}
+                    </div>
+                    ${inv.Summary ? `<div style="font-size:12px;color:var(--text-2);margin-top:4px;line-height:1.4;">${escapeHtml(inv.Summary)}</div>` : ''}
                   </td>
                 </tr>` : ''}`).join('')}
               </tbody>
