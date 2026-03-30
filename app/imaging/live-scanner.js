@@ -203,21 +203,34 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
       debugLog('video size: ' + video.offsetWidth + 'x' + video.offsetHeight);
       debugLog('video computed style: ' + getComputedStyle(video).height + ' x ' + getComputedStyle(video).width);
 
-      // iOS needs loadedmetadata before play
-      await new Promise(resolve => {
-        video.onloadedmetadata = () => {
-          debugLog('loadedmetadata fired. videoW=' + video.videoWidth + ' videoH=' + video.videoHeight);
-          resolve();
-        };
-        setTimeout(() => {
-          debugLog('loadedmetadata TIMEOUT (3s). readyState=' + video.readyState + ' videoW=' + video.videoWidth);
-          resolve();
-        }, 3000);
+      // Don't await play() — it hangs on iOS Safari.
+      // autoplay + playsinline handle playback. Fire-and-forget.
+      debugLog('Calling play() (fire-and-forget)...');
+      video.play().then(() => {
+        debugLog('play() resolved. paused=' + video.paused);
+      }).catch(err => {
+        debugLog('play() rejected: ' + err.message);
       });
-      debugLog('Calling play()...');
-      await video.play();
-      debugLog('play() resolved. paused=' + video.paused + ' readyState=' + video.readyState);
-      debugLog('Video native: ' + video.videoWidth + 'x' + video.videoHeight);
+
+      // Wait for video to actually have frames, not just metadata
+      await new Promise(resolve => {
+        function check() {
+          if (video.videoWidth > 0 && video.readyState >= 2) {
+            debugLog('Video ready: ' + video.videoWidth + 'x' + video.videoHeight + ' readyState=' + video.readyState);
+            resolve();
+          } else {
+            debugLog('Waiting for frames... readyState=' + video.readyState + ' videoW=' + video.videoWidth);
+            setTimeout(check, 200);
+          }
+        }
+        check();
+        // Hard timeout — proceed anyway after 5s
+        setTimeout(() => {
+          debugLog('Frame wait TIMEOUT (5s). Proceeding. readyState=' + video.readyState + ' videoW=' + video.videoWidth);
+          resolve();
+        }, 5000);
+      });
+
       debugLog('Video CSS: ' + getComputedStyle(video).width + ' x ' + getComputedStyle(video).height);
       debugLog('Video offset: ' + video.offsetWidth + 'x' + video.offsetHeight);
       syncSize();
