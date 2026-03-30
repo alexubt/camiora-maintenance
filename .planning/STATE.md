@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-03-30T14:30:11.106Z"
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-03-30T14:35:21.124Z"
 last_activity: 2026-03-26 — Completed 08-01 Worker api-proxy with Claude Haiku Invoice Extraction
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 26
-  completed_plans: 24
+  completed_plans: 25
   percent: 88
 ---
 
@@ -71,6 +71,7 @@ Progress: [█████████░] 88%
 | Phase 08 P02 | 7min | 2 tasks | 4 files |
 | Phase 08 P03 | 4 | 2 tasks | 6 files |
 | Phase 09 P01 | 5 | 2 tasks | 5 files |
+| Phase 09 P02 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -147,6 +148,8 @@ Recent decisions affecting current work:
 - [Phase 09]: scanner-core.js exports adj3/mul3/mul3v/basisToPoints/createProjector as named exports — needed by detect-worker.js and live-scanner.js
 - [Phase 09]: processImage simplified to return {scanned} only — corrected canvas removed with ocrBlob dead code
 - [Phase 09]: package.json type:module added for clean Node.js ES module test execution
+- [Phase 09]: onFallback() invoked on all camera/worker failure paths (getUserMedia missing, denied, Worker construction error)
+- [Phase 09]: displayCorners held 300ms after currentCorners goes null to prevent flicker when document briefly leaves frame
 
 ### Pending Todos
 
@@ -174,6 +177,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-30T14:30:11.103Z
-Stopped at: Completed 09-01-PLAN.md
+Last session: 2026-03-30T14:35:21.122Z
+Stopped at: Completed 09-02-PLAN.md
 Resume file: None
