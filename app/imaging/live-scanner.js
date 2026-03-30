@@ -62,6 +62,8 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
   videoEl.autoplay = true;
   videoEl.muted = true;
   videoEl.setAttribute('playsinline', '');
+  videoEl.setAttribute('webkit-playsinline', '');
+  videoEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
 
   const overlayCanvas = document.createElement('canvas');
   overlayCanvas.className = 'live-scanner__overlay';
