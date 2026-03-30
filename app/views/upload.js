@@ -382,10 +382,38 @@ function renderMilestoneChips(unitId, preselected = []) {
 }
 
 // ── Scanner: open camera ─────────────────────────────────────────────────────
-function openCamera() {
-  const input = document.getElementById('cameraInput');
-  input.value = '';
-  input.click();
+async function openCamera() {
+  const appEl = document.getElementById('app');
+
+  const { openLiveScanner } = await import('../imaging/live-scanner.js');
+
+  openLiveScanner(appEl, {
+    onDone(scannedBlobs) {
+      // Append to existing pages (handles "add more" case) or replace if starting fresh
+      state.scanPages = state.scanPages.concat(scannedBlobs);
+      renderScanPages();
+      updateAll();
+      // Do NOT call buildPdfFromPages here — it will be called once in triggerExtractionFromScan
+    },
+    onCancel() {
+      // User backed out without capturing — nothing to do
+    },
+    onFallback() {
+      // getUserMedia unavailable or denied — fall back to native <input capture>
+      showToast('Camera access needed for live scanner \u2014 using photo mode', 'info');
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.setAttribute('capture', 'environment');
+      input.style.display = 'none';
+      document.body.appendChild(input);
+      input.addEventListener('change', () => {
+        handleCameraCapture(input);
+        input.remove();
+      });
+      input.click();
+    },
+  });
 }
 
 async function handleCameraCapture(input) {
@@ -403,8 +431,11 @@ async function handleCameraCapture(input) {
     const img = await loadImage(file);
     const { scannedBlob } = await processAndRelease(img);
     state.scanPages.push(scannedBlob);
+    zone.innerHTML = origHTML;
+    zone.style.pointerEvents = '';
     renderScanPages();
-    await buildPdfFromPages();
+    updateAll();
+    // Do NOT build PDF here — it will be assembled once in triggerExtractionFromScan
   } catch (err) {
     console.error('Scan error:', err);
     showToast('Failed to process image', 'error');
@@ -418,7 +449,10 @@ async function handleCameraCapture(input) {
  * Run extraction on the assembled scanned PDF (the last entry in files[] with
  * name 'scanned-document.pdf'). Non-blocking — form fields auto-fill on success.
  */
-function triggerExtractionFromScan() {
+async function triggerExtractionFromScan() {
+  // Assemble all scanned pages into a PDF exactly once (O(N) not O(N^2))
+  await buildPdfFromPages();
+
   const pdfFile = files.find(f => f.name === 'scanned-document.pdf');
   if (!pdfFile) return;
 
@@ -471,13 +505,10 @@ function renderScanPages() {
 function removeScanPage(i) {
   state.scanPages.splice(i, 1);
   renderScanPages();
-  if (state.scanPages.length) {
-    buildPdfFromPages();
-  } else {
-    files = files.filter(f => f.name !== 'scanned-document.pdf');
-    renderFileList();
-    updateAll();
-  }
+  // Clear any previously built PDF so it will be rebuilt fresh on "Done - Extract"
+  files = files.filter(f => f.name !== 'scanned-document.pdf');
+  renderFileList();
+  updateAll();
 }
 
 async function addMorePages() {
