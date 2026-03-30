@@ -206,25 +206,20 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
 
   // ── Single camera attempt — returns true if video is playing ──────────────
 
+  // ── Tear down current stream + video completely ──────────────────────────
+
+  function teardownStream() {
+    try { video.pause(); video.srcObject = null; } catch (_) {}
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    killGlobalStream();
+  }
+
+  // ── Single camera attempt — returns true if video is playing ──────────────
+
   async function attemptCamera(attemptNum) {
     debugLog(`--- Attempt ${attemptNum} ---`);
 
-    // Kill any orphaned stream
-    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-    killGlobalStream();
-
-    const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-    if (isStandalone) {
-      debugLog('iOS PWA detected — applying camera reset workaround');
-      try {
-        const resetStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        resetStream.getTracks().forEach(t => t.stop());
-        debugLog('Camera reset stream obtained and stopped');
-        await new Promise(r => setTimeout(r, 300));
-      } catch (resetErr) {
-        debugLog('Camera reset failed (non-fatal): ' + resetErr.message);
-      }
-    }
+    teardownStream();
 
     debugLog('Requesting camera...');
     stream = await navigator.mediaDevices.getUserMedia({
@@ -245,10 +240,8 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     // Swap into DOM — replace whatever video element is currently there
     try { el.replaceChild(freshVideo, video); } catch (_) { el.prepend(freshVideo); }
     video = freshVideo;
-    // Re-bind metadata sync
     video.addEventListener('loadedmetadata', syncSize);
     debugLog('Fresh video element created and swapped');
-    debugLog('Forced video dimensions: ' + window.innerWidth + 'x' + window.innerHeight);
 
     // Set srcObject and wait for video events
     const started = await new Promise(resolve => {
@@ -285,6 +278,12 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
   }
 
   // ── Camera startup with retry ──────────────────────────────────────────────
+  // WebKit bug 252465: in iOS PWA, the video element stalls at suspend on
+  // second launch. The workaround is to treat attempt 1 as a warm-up that
+  // resets WebKit's camera subsystem. If it stalls, tear down completely,
+  // wait, and retry. Up to 3 attempts with escalating delays.
+
+  const RETRY_DELAYS = [500, 1000, 1500];
 
   async function startCamera() {
     debugLog('getUserMedia supported: ' + !!navigator.mediaDevices?.getUserMedia);
@@ -295,24 +294,21 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     }
 
     try {
-      // Attempt 1
-      let started = await attemptCamera(1);
+      let started = false;
 
-      // WebKit bug 252465: second launch in iOS PWA often stalls at suspend.
-      // Tear everything down and retry once — the second attempt often succeeds
-      // because the first attempt "warms up" the camera subsystem.
-      if (!started) {
-        debugLog('Attempt 1 stalled — retrying...');
-        // Fully release the stalled stream before retrying
-        try { video.pause(); video.srcObject = null; } catch (_) {}
-        if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-        _globalStream = null;
-        await new Promise(r => setTimeout(r, 500));
-        started = await attemptCamera(2);
+      for (let i = 0; i < 3; i++) {
+        started = await attemptCamera(i + 1);
+        if (started) break;
+
+        debugLog(`Attempt ${i + 1} stalled — ${i < 2 ? 'retrying in ' + RETRY_DELAYS[i] + 'ms...' : 'giving up'}`);
+        if (i < 2) {
+          teardownStream();
+          await new Promise(r => setTimeout(r, RETRY_DELAYS[i]));
+        }
       }
 
       if (!started) {
-        debugLog('Both attempts failed — falling back to native camera');
+        debugLog('All attempts failed — falling back to native camera');
         exit();
         onFallback?.();
         return;
