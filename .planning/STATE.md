@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 10-02-PLAN.md
-last_updated: "2026-03-30T21:27:51.329Z"
+stopped_at: Completed 10-03-PLAN.md
+last_updated: "2026-03-30T21:37:48.516Z"
 last_activity: 2026-03-26 — Completed 08-01 Worker api-proxy with Claude Haiku Invoice Extraction
 progress:
   total_phases: 10
   completed_phases: 9
   total_plans: 30
-  completed_plans: 28
+  completed_plans: 29
   percent: 88
 ---
 
@@ -75,6 +75,7 @@ Progress: [█████████░] 88%
 | Phase 09 P03 | 3 | 2 tasks | 3 files |
 | Phase 10 P01 | 3 | 2 tasks | 2 files |
 | Phase 10 P02 | 4 | 2 tasks | 2 files |
+| Phase 10 P03 | 13 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -160,6 +161,8 @@ Recent decisions affecting current work:
 - [Phase 10]: getMilestonesForCategory returns [] for unknown categories — DEFAULT_MILESTONES kept for seeding only, not runtime fallback
 - [Phase 10]: urgencyScore uses numeric bands (overdue:<0, due-soon:0-1M, ok:1M+, untracked:9M) for stable cross-status sort ordering
 - [Phase 10]: showToast defined locally in settings.js — unit-detail.js version is private, not exported; avoids coupling views
+- [Phase 10]: 10-03: Status filter dropdown hidden when Coming Due tab is active (tab IS the filter per RESEARCH Pitfall 6)
+- [Phase 10]: 10-03: e.preventDefault()+e.stopPropagation() on expand-milestones click prevents navigation since expand is inside card anchor tag
 
 ### Pending Todos
 
@@ -187,6 +190,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-30T21:27:51.327Z
-Stopped at: Completed 10-02-PLAN.md
+Last session: 2026-03-30T21:37:48.513Z
+Stopped at: Completed 10-03-PLAN.md
 Resume file: None
