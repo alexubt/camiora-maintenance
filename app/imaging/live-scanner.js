@@ -294,8 +294,21 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
         },
         audio: false,
       });
+
+      // Wait for video to be ready before playing — iOS needs this
       videoEl.srcObject = stream;
-      await videoEl.play();
+      await new Promise((resolve, reject) => {
+        videoEl.onloadedmetadata = () => {
+          videoEl.play()
+            .then(resolve)
+            .catch(reject);
+        };
+        // Timeout fallback in case loadedmetadata never fires
+        setTimeout(() => {
+          videoEl.play().then(resolve).catch(reject);
+        }, 2000);
+      });
+
       syncOverlaySize();
     } catch (err) {
       console.warn('[live-scanner] Camera error:', err);
@@ -432,6 +445,10 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
 
   function exitScanner() {
     scannerActive = false;
+
+    // Clear video source — iOS keeps camera active without this
+    videoEl.pause();
+    videoEl.srcObject = null;
 
     // Stop all camera tracks
     if (stream) {
