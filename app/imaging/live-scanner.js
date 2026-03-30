@@ -392,6 +392,22 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
 
   // ── Capture press ─────────────────────────────────────────────────────────
 
+  // ── Torch helper ──────────────────────────────────────────────────────────
+
+  async function setTorch(on) {
+    if (!stream) return false;
+    const track = stream.getVideoTracks()[0];
+    if (!track) return false;
+    try {
+      const caps = track.getCapabilities?.();
+      if (!caps?.torch) return false;
+      await track.applyConstraints({ advanced: [{ torch: on }] });
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   async function onCapturePress() {
     if (!videoEl.videoWidth) return;
 
@@ -402,6 +418,10 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     spinner.className = 'live-scanner__spinner';
     thumbnailsEl.appendChild(spinner);
 
+    // Turn on torch for maximum detail, wait for exposure to adjust
+    const torchOn = await setTorch(true);
+    if (torchOn) await new Promise(r => setTimeout(r, 400));
+
     flashCapture();
 
     // Draw at full stream resolution
@@ -410,6 +430,9 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     captureCanvas.height = videoEl.videoHeight;
     const ctx = captureCanvas.getContext('2d');
     ctx.drawImage(videoEl, 0, 0);
+
+    // Turn off torch immediately after capture
+    if (torchOn) setTorch(false);
 
     try {
       // processImage accepts an HTMLCanvasElement (drawImage-compatible)
