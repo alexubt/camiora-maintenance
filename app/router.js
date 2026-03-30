@@ -6,11 +6,13 @@
 import { render as renderUpload } from './views/upload.js';
 import { render as renderUnitDetail } from './views/unit-detail.js';
 import { render as renderDashboard } from './views/dashboard.js';
+import { render as renderSettings } from './views/settings.js';
 
 const ROUTES = {
   '#upload':    renderUpload,
   '#unit':      renderUnitDetail,
   '#dashboard': renderDashboard,
+  '#settings':  renderSettings,
 };
 
 export function initRouter(container) {
