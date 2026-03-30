@@ -1,4 +1,4 @@
-const CACHE = 'camiora-v27';
+const CACHE = 'camiora-v28';
 const STATIC = [
   './',
   './index.html',
@@ -14,6 +14,9 @@ const STATIC = [
   './app/views/dashboard.js',
   './app/views/unit-detail.js',
   './app/imaging/scanner.js',
+  './app/imaging/scanner-core.js',
+  './app/imaging/detect-worker.js',
+  './app/imaging/live-scanner.js',
   './app/graph/auth.js',
   './app/graph/csv.js',
   './app/graph/files.js',
@@ -49,7 +52,7 @@ self.addEventListener('fetch', e => {
   // Never intercept navigation requests — let the auth redirect flow through
   if (e.request.mode === 'navigate') return;
 
-  // Network-first for CDN assets (Tesseract, etc.)
+  // Network-first for CDN assets
   if (e.request.url.includes('cdn.jsdelivr.net') || e.request.url.includes('cdnjs.cloudflare.com') || e.request.url.includes('unpkg.com')) {
     e.respondWith(
       fetch(e.request)
