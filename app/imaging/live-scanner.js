@@ -165,7 +165,14 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
 
   // ── Camera ────────────────────────────────────────────────────────────────
 
+  // ── Debug overlay (temporary — remove after iOS fix) ───────────────────
+  const dbg = document.createElement('div');
+  dbg.style.cssText = 'position:absolute;top:50px;left:10px;right:10px;z-index:9999;background:rgba(0,0,0,0.8);color:#0f0;font:12px monospace;padding:8px;border-radius:6px;pointer-events:none;white-space:pre-wrap;';
+  el.appendChild(dbg);
+  function debugLog(msg) { dbg.textContent += msg + '\n'; }
+
   async function startCamera() {
+    debugLog('getUserMedia supported: ' + !!navigator.mediaDevices?.getUserMedia);
     if (!navigator.mediaDevices?.getUserMedia) {
       exit();
       onFallback?.();
@@ -173,23 +180,44 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     }
 
     try {
+      debugLog('Requesting camera...');
       stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false,
       });
+      debugLog('Stream obtained: ' + stream.getTracks().map(t => t.kind + ':' + t.readyState).join(', '));
+      debugLog('Track settings: ' + JSON.stringify(stream.getVideoTracks()[0]?.getSettings()));
+
       video.srcObject = stream;
+      debugLog('srcObject set. video.readyState=' + video.readyState);
+      debugLog('video size: ' + video.offsetWidth + 'x' + video.offsetHeight);
+      debugLog('video computed style: ' + getComputedStyle(video).height + ' x ' + getComputedStyle(video).width);
+
       // iOS needs loadedmetadata before play
       await new Promise(resolve => {
-        video.onloadedmetadata = () => resolve();
-        setTimeout(resolve, 3000); // fallback
+        video.onloadedmetadata = () => {
+          debugLog('loadedmetadata fired. videoW=' + video.videoWidth + ' videoH=' + video.videoHeight);
+          resolve();
+        };
+        setTimeout(() => {
+          debugLog('loadedmetadata TIMEOUT (3s). readyState=' + video.readyState + ' videoW=' + video.videoWidth);
+          resolve();
+        }, 3000);
       });
+      debugLog('Calling play()...');
       await video.play();
+      debugLog('play() resolved. paused=' + video.paused + ' readyState=' + video.readyState);
+      debugLog('Video native: ' + video.videoWidth + 'x' + video.videoHeight);
+      debugLog('Video CSS: ' + getComputedStyle(video).width + ' x ' + getComputedStyle(video).height);
+      debugLog('Video offset: ' + video.offsetWidth + 'x' + video.offsetHeight);
       syncSize();
 
       // Start detection + overlay
       detectInterval = setInterval(runDetection, 200);
       overlayRaf = requestAnimationFrame(drawLoop);
+      debugLog('Scanner running!');
     } catch (err) {
+      debugLog('ERROR: ' + err.message);
       console.warn('[live-scanner] Camera failed:', err);
       exit();
       onFallback?.();
