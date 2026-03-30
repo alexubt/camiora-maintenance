@@ -59,6 +59,18 @@
 - [x] **VIS-06**: Both camera scans (JPEG) and uploaded PDFs supported for extraction
 - [x] **VIS-07**: Tesseract.js and spatial scoring code fully removed
 
+### Live Camera Scanner (Phase 9)
+
+- **LIVE-01**: Scanner.js pure-math functions extracted to scanner-core.js with zero DOM dependencies
+- **LIVE-02**: Web Worker (detect-worker.js) runs edge detection on transferred pixel data at 3-5fps
+- **LIVE-03**: Dead ocrBlob computation removed from processAndRelease
+- **LIVE-04**: In-app getUserMedia viewfinder with real-time video feed replaces native camera input
+- **LIVE-05**: Real-time edge detection overlay renders smoothly interpolated green quad at 60fps
+- **LIVE-06**: Multi-page capture flow with thumbnail strip and Done button
+- **LIVE-07**: Upload.js wired to live scanner with seamless fallback to input capture
+- **LIVE-08**: O(N^2) buildPdfFromPages fixed — PDF assembled only once on Done
+- **LIVE-09**: Service worker updated with new static files for offline caching
+
 ## v2 Requirements
 
 ### Advanced Scanner
@@ -127,12 +139,21 @@
 | VIS-05 | Phase 8 | Planned |
 | VIS-06 | Phase 8 | Planned |
 | VIS-07 | Phase 8 | Planned |
+| LIVE-01 | Phase 9 | Planned |
+| LIVE-02 | Phase 9 | Planned |
+| LIVE-03 | Phase 9 | Planned |
+| LIVE-04 | Phase 9 | Planned |
+| LIVE-05 | Phase 9 | Planned |
+| LIVE-06 | Phase 9 | Planned |
+| LIVE-07 | Phase 9 | Planned |
+| LIVE-08 | Phase 9 | Planned |
+| LIVE-09 | Phase 9 | Planned |
 
 **Coverage:**
-- v1 requirements: 33 total
-- Mapped to phases: 33
+- v1 requirements: 42 total
+- Mapped to phases: 42
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-16*
-*Last updated: 2026-03-26 after Phase 8 planning — VIS-01 through VIS-07 added*
+*Last updated: 2026-03-30 after Phase 9 planning — LIVE-01 through LIVE-09 added*

@@ -119,7 +119,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -131,6 +131,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 6. Auth Hardening and PWA Reliability | 1/3 | Complete    | 2026-03-17 |
 | 7. Dashboard & UX Improvements | 0/4 | Complete    | 2026-03-19 |
 | 8. Claude Vision Invoice Extraction | 3/3 | Complete   | 2026-03-26 |
+| 9. Live Camera Document Scanner | 0/3 | Planned   | — |
 
 ### Phase 7: Dashboard & UX Improvements
 
@@ -179,3 +180,23 @@ Plans:
 - [ ] 08-01-PLAN.md — Worker rename + /extract-invoice POST route with Claude Haiku API
 - [ ] 08-02-PLAN.md — Extract client module, upload.js rewire, Tesseract removal
 - [ ] 08-03-PLAN.md — Milestone tag picker UI, batch milestone reset, SW/URL cleanup
+
+### Phase 9: Live Camera Document Scanner
+
+**Goal:** The scanner uses an in-app getUserMedia viewfinder with real-time edge detection via Web Worker, tap-to-capture with automatic perspective correction, and multi-page flow — replacing the native camera input for a seamless scanning experience
+**Depends on:** Phase 8
+**Requirements:** LIVE-01, LIVE-02, LIVE-03, LIVE-04, LIVE-05, LIVE-06, LIVE-07, LIVE-08, LIVE-09
+**Success Criteria** (what must be TRUE):
+  1. Scanner.js pure math is isolated in scanner-core.js importable from both browser and Web Worker
+  2. A Web Worker runs document edge detection at 3-5fps on downscaled frames without blocking the main thread
+  3. The viewfinder shows a smooth green quad overlay interpolated at 60fps marking detected document edges
+  4. User can capture multiple pages with thumbnail strip and assemble them into a single PDF on Done
+  5. PDF is assembled once on Done (not after every page), fixing the O(N^2) performance bug
+  6. Dead ocrBlob computation is removed from processAndRelease
+  7. If getUserMedia is denied or unavailable, the app falls back seamlessly to input capture
+**Plans:** 3 plans
+
+Plans:
+- [ ] 09-01-PLAN.md — Scanner refactor: split scanner-core.js from scanner.js, create detect-worker.js, unit tests, remove dead ocrBlob
+- [ ] 09-02-PLAN.md — Live scanner UI: viewfinder module with camera, edge detection overlay, capture flow, thumbnail strip
+- [ ] 09-03-PLAN.md — Integration: wire upload.js to live scanner, fix O(N^2) buildPdfFromPages, SW cache update, cleanup
