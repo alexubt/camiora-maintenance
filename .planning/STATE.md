@@ -77,6 +77,7 @@ Progress: [█████████░] 88%
 
 - Phase 7 added: Dashboard & UX Improvements — fleet summary bar, color-coded milestones, search/filter, dark mode fix, expanded add-unit form, edit unit attributes, delete unit, quick mileage update, fix invoice PDF links, loading skeletons, empty state CTAs, tab scrollbar fix, back link feedback
 - Phase 8 added: Claude Vision Invoice Extraction — replace Tesseract.js with Claude Haiku via Cloudflare Worker, handwriting support, invoice summarization, milestone tag picker with auto-reset
+- Phase 9 added: Live Camera Document Scanner — in-app getUserMedia viewfinder with real-time edge detection via Web Worker, tap-to-capture with auto perspective correction, multi-page flow
 
 ### Decisions
 
