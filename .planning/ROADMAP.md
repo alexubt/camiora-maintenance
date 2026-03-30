@@ -119,7 +119,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -132,6 +132,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 7. Dashboard & UX Improvements | 0/4 | Complete    | 2026-03-19 |
 | 8. Claude Vision Invoice Extraction | 3/3 | Complete   | 2026-03-26 |
 | 9. Live Camera Document Scanner | 3/3 | Complete   | 2026-03-30 |
+| 10. Modular Maintenance Tracking | 0/4 | Planning   | — |
 
 ### Phase 7: Dashboard & UX Improvements
 
@@ -200,3 +201,25 @@ Plans:
 - [ ] 09-01-PLAN.md — Scanner refactor: split scanner-core.js from scanner.js, create detect-worker.js, unit tests, remove dead ocrBlob
 - [ ] 09-02-PLAN.md — Live scanner UI: viewfinder module with camera, edge detection overlay, capture flow, thumbnail strip
 - [ ] 09-03-PLAN.md — Integration: wire upload.js to live scanner, fix O(N^2) buildPdfFromPages, SW cache update, cleanup
+
+### Phase 10: Modular Maintenance Tracking
+
+**Goal:** Maintenance schedules are fully configurable per equipment type via an in-app settings UI — milestone CRUD, configurable due-soon thresholds, dynamic dashboard cards with collapse/expand, Coming Due filter, and trailer tire tracking
+**Depends on:** Phase 9
+**Requirements:** MAINT-01, MAINT-02, MAINT-03, MAINT-04, MAINT-05, MAINT-06, MAINT-07, MAINT-08, MAINT-09, MAINT-10, MAINT-11, MAINT-12
+**Success Criteria** (what must be TRUE):
+  1. Fleet manager can add, edit, and delete maintenance milestones per equipment type via a settings page (gear icon on dashboard)
+  2. Equipment types are auto-discovered from the Type column in units.csv
+  3. Milestone config is read from and written to milestone-config.csv on OneDrive
+  4. Due-soon thresholds are configurable (mileage and time) and used by dashboard calculations
+  5. Dashboard cards show only overdue and due-soon milestones by default, with expand link for OK items
+  6. A "Coming Due" filter tab on the dashboard shows all units with milestones due within threshold
+  7. Milestones are auto-sorted by urgency (overdue -> due-soon -> OK)
+  8. Trailer tire positions are tracked in the unit detail tire monitor
+**Plans:** 4 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — TDD: Milestone engine refactor (getDueSoonThresholds, isDueSoon, saveMilestoneConfig, urgencyScore, remove DEFAULT fallback)
+- [ ] 10-02-PLAN.md — Settings view with per-type milestone CRUD and threshold editing, #settings route
+- [ ] 10-03-PLAN.md — Dashboard UX: collapse/expand cards, urgency sort, Coming Due tab, configurable due-soon
+- [ ] 10-04-PLAN.md — Trailer tire verification, SW cache update, browser verification checkpoint
