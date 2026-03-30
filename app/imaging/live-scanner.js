@@ -310,6 +310,14 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
       });
 
       syncOverlaySize();
+
+      // If any track ends unexpectedly (camera error, system reclaim), clean up
+      stream.getTracks().forEach(t => {
+        t.addEventListener('ended', () => {
+          console.warn('[live-scanner] Camera track ended unexpectedly');
+          exitScanner();
+        });
+      });
     } catch (err) {
       console.warn('[live-scanner] Camera error:', err);
       showToast('Camera access needed for live scanner \u2014 using photo mode');
@@ -444,21 +452,30 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
   // ── Exit scanner ──────────────────────────────────────────────────────────
 
   function exitScanner() {
+    if (!scannerActive && !stream) return; // already exited
     scannerActive = false;
 
     // Clear video source — iOS keeps camera active without this
-    videoEl.pause();
-    videoEl.srcObject = null;
+    try {
+      videoEl.pause();
+      videoEl.srcObject = null;
+      videoEl.load(); // force iOS to release camera
+    } catch (_) {}
 
-    // Stop all camera tracks
+    // Stop all camera tracks — belt and suspenders
     if (stream) {
-      stream.getTracks().forEach(t => t.stop());
+      try {
+        stream.getTracks().forEach(t => {
+          t.stop();
+          stream.removeTrack(t);
+        });
+      } catch (_) {}
       stream = null;
     }
 
     // Terminate worker
     if (worker) {
-      worker.terminate();
+      try { worker.terminate(); } catch (_) {}
       worker = null;
     }
 
@@ -466,12 +483,38 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     blobUrls.forEach(url => URL.revokeObjectURL(url));
     blobUrls.length = 0;
 
-    // Detach resize listener
+    // Detach all listeners
     window.removeEventListener('resize', syncOverlaySize);
+    document.removeEventListener('visibilitychange', _onVisibilityChange);
+    window.removeEventListener('hashchange', _onNavAway);
+    window.removeEventListener('pagehide', exitScanner);
 
     // Remove scanner DOM
-    scannerEl.remove();
+    if (scannerEl.parentNode) scannerEl.remove();
   }
+
+  // ── Safety nets — stop camera if user navigates away ────────────────────
+
+  function _onVisibilityChange() {
+    if (document.visibilityState === 'hidden' && stream) {
+      // Pause camera when app goes to background (iOS)
+      videoEl.pause();
+      stream.getTracks().forEach(t => { if (t.enabled) t.enabled = false; });
+    } else if (document.visibilityState === 'visible' && stream) {
+      stream.getTracks().forEach(t => { t.enabled = true; });
+      videoEl.play().catch(() => {});
+    }
+  }
+
+  function _onNavAway() {
+    // Hash changed — user navigated to another page
+    exitScanner();
+    if (typeof onCancel === 'function') onCancel();
+  }
+
+  document.addEventListener('visibilitychange', _onVisibilityChange);
+  window.addEventListener('hashchange', _onNavAway);
+  window.addEventListener('pagehide', exitScanner);
 
   // ── Button wiring ─────────────────────────────────────────────────────────
 
