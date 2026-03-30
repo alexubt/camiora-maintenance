@@ -213,6 +213,25 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     try {
       // Kill any orphaned stream from a previous session (iOS PWA suspend issue)
       killGlobalStream();
+
+      // WebKit bug 252465 workaround: in iOS PWA standalone mode, getUserMedia
+      // often fails silently on second launch. Creating a temporary <input capture>
+      // element can reset WebKit's internal camera state before requesting the stream.
+      const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+      if (isStandalone) {
+        debugLog('iOS PWA detected — applying camera reset workaround');
+        try {
+          // Request + immediately stop a throwaway stream to wake up the camera subsystem
+          const resetStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          resetStream.getTracks().forEach(t => t.stop());
+          debugLog('Camera reset stream obtained and stopped');
+          // Brief pause to let WebKit release the internal state
+          await new Promise(r => setTimeout(r, 300));
+        } catch (resetErr) {
+          debugLog('Camera reset failed (non-fatal): ' + resetErr.message);
+        }
+      }
+
       debugLog('Requesting camera...');
       stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
