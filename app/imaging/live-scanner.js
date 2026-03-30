@@ -250,30 +250,38 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
       video.style.left = '0';
       debugLog('Forced video dimensions: ' + window.innerWidth + 'x' + window.innerHeight);
 
-      video.srcObject = stream;
-      debugLog('srcObject set. readyState=' + video.readyState);
-
-      // Fire-and-forget play — don't await, don't call load()
-      video.play().catch(() => {});
-      debugLog('play() called (fire-and-forget)');
-
-      // Poll until video has actual frames — fall back to native camera if stuck
+      // Set srcObject and wait for video events — iOS PWA needs event-driven flow
       const started = await new Promise(resolve => {
-        let attempts = 0;
-        function check() {
-          attempts++;
-          if (video.videoWidth > 0 && video.readyState >= 2) {
-            debugLog('Video ready: ' + video.videoWidth + 'x' + video.videoHeight + ' (attempt ' + attempts + ')');
-            resolve(true);
-          } else if (attempts > 15) {
-            // 3 seconds stuck — camera won't start, fall back
-            debugLog('STUCK after ' + attempts + ' attempts. readyState=' + video.readyState + ' videoW=' + video.videoWidth);
-            resolve(false);
-          } else {
-            setTimeout(check, 200);
-          }
+        const timeout = setTimeout(() => {
+          debugLog('TIMEOUT (5s). readyState=' + video.readyState + ' videoW=' + video.videoWidth);
+          resolve(false);
+        }, 5000);
+
+        function onReady() {
+          clearTimeout(timeout);
+          debugLog('Video playing! readyState=' + video.readyState + ' ' + video.videoWidth + 'x' + video.videoHeight);
+          resolve(true);
         }
-        check();
+
+        // Listen for multiple events — different iOS versions fire different ones
+        video.addEventListener('playing', onReady, { once: true });
+        video.addEventListener('canplay', onReady, { once: true });
+        video.addEventListener('loadeddata', onReady, { once: true });
+
+        // Log every event for debugging
+        for (const evt of ['loadstart', 'progress', 'suspend', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'playing', 'waiting', 'stalled', 'error']) {
+          video.addEventListener(evt, () => debugLog('event: ' + evt + ' readyState=' + video.readyState), { once: true });
+        }
+
+        video.srcObject = stream;
+        debugLog('srcObject set. readyState=' + video.readyState);
+
+        // Try play() — but don't rely on its promise
+        const playPromise = video.play();
+        if (playPromise) {
+          playPromise.then(() => debugLog('play() resolved')).catch(e => debugLog('play() rejected: ' + e.message));
+        }
+        debugLog('play() called');
       });
 
       if (!started) {
