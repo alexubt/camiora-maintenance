@@ -71,6 +71,21 @@
 - **LIVE-08**: O(N^2) buildPdfFromPages fixed — PDF assembled only once on Done
 - **LIVE-09**: Service worker updated with new static files for offline caching
 
+### Modular Maintenance Tracking (Phase 10)
+
+- **MAINT-01**: Settings page accessible via gear icon on dashboard header, routed at `#settings`
+- **MAINT-02**: Equipment types auto-discovered from `Type` column in `units.csv` (no manual type creation)
+- **MAINT-03**: Per-type milestone CRUD — add, edit, delete milestones with name, interval type (mileage/time/both), interval value
+- **MAINT-04**: Milestone config persisted to `milestone-config.csv` on OneDrive (read/write, not read-only)
+- **MAINT-05**: Configurable "due soon" thresholds — mileage (default 3,000 mi) and time (default 14 days)
+- **MAINT-06**: Time-based due-soon calculation added (currently missing entirely)
+- **MAINT-07**: Dashboard cards show only overdue + due-soon milestones by default, with expand/collapse for OK items
+- **MAINT-08**: Milestones auto-sorted by urgency: overdue first, then due-soon, then OK, then not-tracked
+- **MAINT-09**: "Coming Due" filter tab on dashboard alongside Trucks/Trailers tabs
+- **MAINT-10**: Remove `DEFAULT_MILESTONES` hardcoded fallback — CSV is single source of truth (keep first-launch seeding)
+- **MAINT-11**: Trailer tire positions added to tire monitor on unit detail page
+- **MAINT-12**: Service worker cache updated with settings view
+
 ## v2 Requirements
 
 ### Advanced Scanner
