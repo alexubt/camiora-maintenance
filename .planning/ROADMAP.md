@@ -131,7 +131,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 6. Auth Hardening and PWA Reliability | 1/3 | Complete    | 2026-03-17 |
 | 7. Dashboard & UX Improvements | 0/4 | Complete    | 2026-03-19 |
 | 8. Claude Vision Invoice Extraction | 3/3 | Complete   | 2026-03-26 |
-| 9. Live Camera Document Scanner | 0/3 | Planned   | — |
+| 9. Live Camera Document Scanner | 1/3 | In Progress|  |
 
 ### Phase 7: Dashboard & UX Improvements
 
@@ -194,7 +194,7 @@ Plans:
   5. PDF is assembled once on Done (not after every page), fixing the O(N^2) performance bug
   6. Dead ocrBlob computation is removed from processAndRelease
   7. If getUserMedia is denied or unavailable, the app falls back seamlessly to input capture
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 09-01-PLAN.md — Scanner refactor: split scanner-core.js from scanner.js, create detect-worker.js, unit tests, remove dead ocrBlob

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-03-PLAN.md
-last_updated: "2026-03-26T23:16:03.950Z"
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-03-30T14:30:11.106Z"
 last_activity: 2026-03-26 — Completed 08-01 Worker api-proxy with Claude Haiku Invoice Extraction
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 8
-  total_plans: 23
-  completed_plans: 23
+  total_plans: 26
+  completed_plans: 24
   percent: 88
 ---
 
@@ -70,6 +70,7 @@ Progress: [█████████░] 88%
 | Phase 08 P01 | 8min | 2 tasks | 4 files |
 | Phase 08 P02 | 7min | 2 tasks | 4 files |
 | Phase 08 P03 | 4 | 2 tasks | 6 files |
+| Phase 09 P01 | 5 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -143,6 +144,9 @@ Recent decisions affecting current work:
 - [Phase 08-02]: Vendor and InvoiceNumber added to invoice CSV row
 - [Phase 08]: batchMarkDone uses DI pattern (csvOps param) — single CSV download + write for all milestones avoids optimistic lock race conditions
 - [Phase 08]: Milestone reset in handleSubmit is non-fatal — upload succeeds even if milestone CSV write fails
+- [Phase 09]: scanner-core.js exports adj3/mul3/mul3v/basisToPoints/createProjector as named exports — needed by detect-worker.js and live-scanner.js
+- [Phase 09]: processImage simplified to return {scanned} only — corrected canvas removed with ocrBlob dead code
+- [Phase 09]: package.json type:module added for clean Node.js ES module test execution
 
 ### Pending Todos
 
@@ -170,6 +174,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-26T23:16:03.947Z
-Stopped at: Completed quick-3 Display full invoice details on unit detail page
+Last session: 2026-03-30T14:30:11.103Z
+Stopped at: Completed 09-01-PLAN.md
 Resume file: None
