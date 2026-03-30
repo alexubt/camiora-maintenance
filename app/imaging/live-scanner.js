@@ -263,14 +263,12 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
         console.warn('[live-scanner] Worker error:', err);
         workerSupported = false;
         workerBusy = false;
+        // Worker failed but camera still works — just no edge detection overlay
       };
     } catch (err) {
-      console.warn('[live-scanner] Worker construction failed:', err);
+      console.warn('[live-scanner] Worker construction failed — scanner will work without edge detection:', err);
       workerSupported = false;
-      if (typeof onFallback === 'function') {
-        exitScanner();
-        onFallback();
-      }
+      // Don't call exitScanner or onFallback — camera can still capture without detection
     }
   }
 
@@ -509,35 +507,29 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     // Detach all listeners
     window.removeEventListener('resize', syncOverlaySize);
     document.removeEventListener('visibilitychange', _onVisibilityChange);
-    window.removeEventListener('hashchange', _onNavAway);
     window.removeEventListener('pagehide', exitScanner);
 
     // Remove scanner DOM
     if (scannerEl.parentNode) scannerEl.remove();
   }
 
-  // ── Safety nets — stop camera if user navigates away ────────────────────
+  // ── Safety nets — registered AFTER camera starts successfully ────────────
 
   function _onVisibilityChange() {
-    if (document.visibilityState === 'hidden' && stream) {
-      // Pause camera when app goes to background (iOS)
+    if (!stream) return; // camera not running
+    if (document.visibilityState === 'hidden') {
       videoEl.pause();
       stream.getTracks().forEach(t => { if (t.enabled) t.enabled = false; });
-    } else if (document.visibilityState === 'visible' && stream) {
+    } else if (document.visibilityState === 'visible') {
       stream.getTracks().forEach(t => { t.enabled = true; });
       videoEl.play().catch(() => {});
     }
   }
 
-  function _onNavAway() {
-    // Hash changed — user navigated to another page
-    exitScanner();
-    if (typeof onCancel === 'function') onCancel();
+  function _registerSafetyNets() {
+    document.addEventListener('visibilitychange', _onVisibilityChange);
+    window.addEventListener('pagehide', exitScanner);
   }
-
-  document.addEventListener('visibilitychange', _onVisibilityChange);
-  window.addEventListener('hashchange', _onNavAway);
-  window.addEventListener('pagehide', exitScanner);
 
   // ── Button wiring ─────────────────────────────────────────────────────────
 
@@ -554,6 +546,7 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
   initWorker();
   scannerActive = true;
   startCamera().then(() => {
+    _registerSafetyNets();
     requestAnimationFrame(overlayLoop);
   });
 
