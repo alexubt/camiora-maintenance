@@ -129,13 +129,30 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     if (!corners) return;
 
-    // Corners are in detection frame coordinates (e.g. 360x240),
-    // scale them to the overlay canvas size (viewport)
-    const scaleX = overlayCanvas.width / detectionFrameW;
-    const scaleY = overlayCanvas.height / detectionFrameH;
+    // Corners are in detection frame coordinates (e.g. 360x240).
+    // The video uses object-fit:cover which crops the frame to fill
+    // the viewport. We must account for that crop offset.
+    const canvasW = overlayCanvas.width;
+    const canvasH = overlayCanvas.height;
+    const videoNativeW = videoEl.videoWidth || 1;
+    const videoNativeH = videoEl.videoHeight || 1;
+
+    // object-fit:cover scale factor — scale to fill, then crop
+    const coverScale = Math.max(canvasW / videoNativeW, canvasH / videoNativeH);
+    const displayedW = videoNativeW * coverScale;
+    const displayedH = videoNativeH * coverScale;
+    const offsetX = (displayedW - canvasW) / 2;
+    const offsetY = (displayedH - canvasH) / 2;
+
+    // detection coords → video native → displayed → minus crop offset
+    const detToNativeX = videoNativeW / detectionFrameW;
+    const detToNativeY = videoNativeH / detectionFrameH;
 
     function toCanvas(pt) {
-      return { x: pt.x * scaleX, y: pt.y * scaleY };
+      return {
+        x: pt.x * detToNativeX * coverScale - offsetX,
+        y: pt.y * detToNativeY * coverScale - offsetY,
+      };
     }
 
     const tl = toCanvas(corners.tl);
