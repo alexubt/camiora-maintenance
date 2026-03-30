@@ -43,7 +43,7 @@ export function perspectiveWarp(srcCanvas, corners) {
   out.height = outH;
   const outCtx = out.getContext('2d');
 
-  const srcCtx = srcCanvas.getContext('2d');
+  const srcCtx = srcCanvas.getContext('2d', { willReadFrequently: true });
   const srcData = srcCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height).data;
   const outImg = outCtx.createImageData(outW, outH);
   const outData = outImg.data;
@@ -78,7 +78,7 @@ export function perspectiveWarp(srcCanvas, corners) {
 // ── Adaptive threshold B&W filter (DOM) ─────────────────────────────────────
 
 export function applyAdaptiveThreshold(canvas) {
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const d = imageData.data;
   const w = canvas.width, h = canvas.height;
@@ -129,7 +129,7 @@ export async function processAndRelease(img) {
 
 export function processImage(img) {
   const work = document.createElement('canvas');
-  const wCtx = work.getContext('2d');
+  const wCtx = work.getContext('2d', { willReadFrequently: true });
   const scale = Math.min(1, 2400 / Math.max(img.width, img.height));
   work.width = Math.round(img.width * scale);
   work.height = Math.round(img.height * scale);
@@ -158,7 +158,7 @@ export function processImage(img) {
 
 export function detectEdges(img) {
   const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const scale = Math.min(1, 2400 / Math.max(img.width, img.height));
   canvas.width = Math.round(img.width * scale);
   canvas.height = Math.round(img.height * scale);
