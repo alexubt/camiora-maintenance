@@ -198,13 +198,24 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
       debugLog('Stream obtained: ' + stream.getTracks().map(t => t.kind + ':' + t.readyState).join(', '));
       debugLog('Track settings: ' + JSON.stringify(stream.getVideoTracks()[0]?.getSettings()));
 
+      // Force explicit dimensions BEFORE setting source — iOS won't load
+      // a video stream into a 0-height element
+      video.style.width = '100%';
+      video.style.height = '100%';
+      video.style.position = 'absolute';
+      video.style.top = '0';
+      video.style.left = '0';
+      debugLog('Forced video dimensions: ' + window.innerWidth + 'x' + window.innerHeight);
+
       video.srcObject = stream;
       debugLog('srcObject set. video.readyState=' + video.readyState);
       debugLog('video size: ' + video.offsetWidth + 'x' + video.offsetHeight);
-      debugLog('video computed style: ' + getComputedStyle(video).height + ' x ' + getComputedStyle(video).width);
+
+      // iOS: load() forces the element to re-evaluate its source
+      video.load();
+      debugLog('load() called. readyState=' + video.readyState);
 
       // Don't await play() — it hangs on iOS Safari.
-      // autoplay + playsinline handle playback. Fire-and-forget.
       debugLog('Calling play() (fire-and-forget)...');
       video.play().then(() => {
         debugLog('play() resolved. paused=' + video.paused);
