@@ -59,7 +59,9 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
   const el = document.createElement('div');
   el.className = 'live-scanner';
 
-  const video = document.createElement('video');
+  // Video element created as placeholder — will be replaced with a fresh one
+  // after getUserMedia succeeds (iOS PWA WebKit bug 252465 workaround)
+  let video = document.createElement('video');
   video.autoplay = true;
   video.muted = true;
   video.setAttribute('playsinline', '');
@@ -250,7 +252,19 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
       video.style.left = '0';
       debugLog('Forced video dimensions: ' + window.innerWidth + 'x' + window.innerHeight);
 
-      // Set srcObject and wait for video events — iOS PWA needs event-driven flow
+      // WebKit bug 252465: the video element created before the stream
+      // can be in a corrupted state in iOS PWA. Create a FRESH video element
+      // after getting the stream and swap it into the DOM.
+      const freshVideo = document.createElement('video');
+      freshVideo.autoplay = true;
+      freshVideo.muted = true;
+      freshVideo.setAttribute('playsinline', '');
+      freshVideo.style.cssText = video.style.cssText;
+      el.replaceChild(freshVideo, video);
+      video = freshVideo;
+      debugLog('Fresh video element created and swapped');
+
+      // Set srcObject and wait for video events
       const started = await new Promise(resolve => {
         const timeout = setTimeout(() => {
           debugLog('TIMEOUT (5s). readyState=' + video.readyState + ' videoW=' + video.videoWidth);
@@ -263,7 +277,6 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
           resolve(true);
         }
 
-        // Listen for multiple events — different iOS versions fire different ones
         video.addEventListener('playing', onReady, { once: true });
         video.addEventListener('canplay', onReady, { once: true });
         video.addEventListener('loadeddata', onReady, { once: true });
@@ -276,7 +289,6 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
         video.srcObject = stream;
         debugLog('srcObject set. readyState=' + video.readyState);
 
-        // Try play() — but don't rely on its promise
         const playPromise = video.play();
         if (playPromise) {
           playPromise.then(() => debugLog('play() resolved')).catch(e => debugLog('play() rejected: ' + e.message));
