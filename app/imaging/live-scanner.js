@@ -11,6 +11,27 @@
 import { detectDocument } from './scanner-core.js';
 import { processImage } from './scanner.js';
 
+// ── Global stream killer — survives across scanner instances ──────────────────
+// iOS PWA doesn't fire cleanup events on suspend. This ensures any leftover
+// stream from a previous session is killed before starting a new one.
+
+let _globalStream = null;
+
+function killGlobalStream() {
+  if (_globalStream) {
+    try { _globalStream.getTracks().forEach(t => t.stop()); } catch (_) {}
+    _globalStream = null;
+  }
+}
+
+// Kill stream whenever the page goes to background or unloads
+// These fire even in iOS PWA standalone mode on suspend
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') killGlobalStream();
+});
+window.addEventListener('pagehide', killGlobalStream);
+window.addEventListener('beforeunload', killGlobalStream);
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
@@ -190,11 +211,14 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     }
 
     try {
+      // Kill any orphaned stream from a previous session (iOS PWA suspend issue)
+      killGlobalStream();
       debugLog('Requesting camera...');
       stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false,
       });
+      _globalStream = stream; // track globally for cleanup on PWA suspend
       debugLog('Stream obtained: ' + stream.getTracks().map(t => t.kind + ':' + t.readyState).join(', '));
       debugLog('Track settings: ' + JSON.stringify(stream.getVideoTracks()[0]?.getSettings()));
 
@@ -345,12 +369,13 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     if (detectInterval) { clearInterval(detectInterval); detectInterval = null; }
     if (overlayRaf) { cancelAnimationFrame(overlayRaf); overlayRaf = null; }
 
-    try { video.pause(); video.srcObject = null; } catch (_) {}
+    try { video.pause(); video.srcObject = null; video.load(); } catch (_) {}
 
     if (stream) {
       stream.getTracks().forEach(t => t.stop());
       stream = null;
     }
+    _globalStream = null;
 
     blobUrls.forEach(u => URL.revokeObjectURL(u));
     blobUrls.length = 0;
