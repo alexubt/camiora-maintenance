@@ -232,48 +232,42 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
       debugLog('Forced video dimensions: ' + window.innerWidth + 'x' + window.innerHeight);
 
       video.srcObject = stream;
-      debugLog('srcObject set. video.readyState=' + video.readyState);
-      debugLog('video size: ' + video.offsetWidth + 'x' + video.offsetHeight);
+      debugLog('srcObject set. readyState=' + video.readyState);
 
-      // iOS: load() forces the element to re-evaluate its source
-      video.load();
-      debugLog('load() called. readyState=' + video.readyState);
+      // Fire-and-forget play — don't await, don't call load()
+      video.play().catch(() => {});
+      debugLog('play() called (fire-and-forget)');
 
-      // Don't await play() — it hangs on iOS Safari.
-      debugLog('Calling play() (fire-and-forget)...');
-      video.play().then(() => {
-        debugLog('play() resolved. paused=' + video.paused);
-      }).catch(err => {
-        debugLog('play() rejected: ' + err.message);
-      });
-
-      // Wait for video to actually have frames, not just metadata
-      await new Promise(resolve => {
+      // Poll until video has actual frames — fall back to native camera if stuck
+      const started = await new Promise(resolve => {
+        let attempts = 0;
         function check() {
+          attempts++;
           if (video.videoWidth > 0 && video.readyState >= 2) {
-            debugLog('Video ready: ' + video.videoWidth + 'x' + video.videoHeight + ' readyState=' + video.readyState);
-            resolve();
+            debugLog('Video ready: ' + video.videoWidth + 'x' + video.videoHeight + ' (attempt ' + attempts + ')');
+            resolve(true);
+          } else if (attempts > 15) {
+            // 3 seconds stuck — camera won't start, fall back
+            debugLog('STUCK after ' + attempts + ' attempts. readyState=' + video.readyState + ' videoW=' + video.videoWidth);
+            resolve(false);
           } else {
-            debugLog('Waiting for frames... readyState=' + video.readyState + ' videoW=' + video.videoWidth);
             setTimeout(check, 200);
           }
         }
         check();
-        // Hard timeout — proceed anyway after 5s
-        setTimeout(() => {
-          debugLog('Frame wait TIMEOUT (5s). Proceeding. readyState=' + video.readyState + ' videoW=' + video.videoWidth);
-          resolve();
-        }, 5000);
       });
 
-      debugLog('Video CSS: ' + getComputedStyle(video).width + ' x ' + getComputedStyle(video).height);
-      debugLog('Video offset: ' + video.offsetWidth + 'x' + video.offsetHeight);
-      syncSize();
+      if (!started) {
+        debugLog('Falling back to native camera');
+        exit();
+        onFallback?.();
+        return;
+      }
 
-      // Start detection + overlay
+      syncSize();
       detectInterval = setInterval(runDetection, 200);
       overlayRaf = requestAnimationFrame(drawLoop);
-      debugLog('Scanner running!');
+      debugLog('Scanner running! ' + video.videoWidth + 'x' + video.videoHeight);
     } catch (err) {
       debugLog('ERROR: ' + err.message);
       console.warn('[live-scanner] Camera failed:', err);
@@ -369,7 +363,7 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     if (detectInterval) { clearInterval(detectInterval); detectInterval = null; }
     if (overlayRaf) { cancelAnimationFrame(overlayRaf); overlayRaf = null; }
 
-    try { video.pause(); video.srcObject = null; video.load(); } catch (_) {}
+    try { video.pause(); video.srcObject = null; } catch (_) {}
 
     if (stream) {
       stream.getTracks().forEach(t => t.stop());
