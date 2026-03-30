@@ -5,7 +5,7 @@
 
 import { state } from '../state.js';
 import { downloadCSV, parseCSV } from '../graph/csv.js';
-import { getMilestonesForCategory, getMilestoneStatus } from '../maintenance/milestones.js';
+import { getMilestonesForCategory, getMilestoneStatus, getDueSoonThresholds, isDueSoon, urgencyScore } from '../maintenance/milestones.js';
 import { dotStatus } from './unit-detail.js';
 import { appendUnit } from '../fleet/units.js';
 import { getValidToken } from '../graph/auth.js';
@@ -137,6 +137,7 @@ let _statusFilter = 'all'; // persist status filter across re-renders
 function renderDashboard(container, allMaintenance, allCondition) {
   const today = new Date().toISOString().split('T')[0];
   const units = state.fleet.units;
+  const { dueSoonMiles, dueSoonDays } = getDueSoonThresholds();
 
   // Build condition map
   const conditionMap = {};
@@ -161,7 +162,8 @@ function renderDashboard(container, allMaintenance, allCondition) {
   }
 
   // Default to first category or persisted tab
-  if (!_activeTab || !categorySet.has(_activeTab)) {
+  const allTabs = [...categories, 'Coming Due'];
+  if (!_activeTab || (!categorySet.has(_activeTab) && _activeTab !== 'Coming Due')) {
     _activeTab = categories[0] || 'All';
   }
 
@@ -184,9 +186,9 @@ function renderDashboard(container, allMaintenance, allCondition) {
       if (s.status === 'overdue') {
         unitOverdue++;
         overdueCount++;
-      } else if (s.status === 'ok' && s.nextDueMiles != null && currentMiles > 0) {
-        const remaining = s.nextDueMiles - currentMiles;
-        if (remaining >= 0 && remaining <= 500) { dueSoonCount++; unitDueSoon = true; }
+      } else if (isDueSoon(s, currentMiles, dueSoonMiles, dueSoonDays)) {
+        dueSoonCount++;
+        unitDueSoon = true;
       }
     }
 
@@ -223,75 +225,148 @@ function renderDashboard(container, allMaintenance, allCondition) {
       </div>
     </div>`;
 
-  // Search and status filter HTML (B6)
+  // Search and status filter HTML (B6) — status filter hidden on Coming Due tab
   const searchFilterHtml = `
     <div style="display:flex;gap:8px;margin-bottom:12px;">
       <input type="text" id="dashSearch" placeholder="Search by Unit ID..." value="${escapeHtml(_searchQuery)}"
         style="flex:1;min-width:0;height:40px;padding:0 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--bg);color:var(--text);">
-      <select id="dashStatusFilter" style="width:90px;flex-shrink:0;height:40px;padding:0 6px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--bg);color:var(--text);">
+      ${_activeTab !== 'Coming Due' ? `<select id="dashStatusFilter" style="width:90px;flex-shrink:0;height:40px;padding:0 6px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--bg);color:var(--text);">
         <option value="all"${_statusFilter === 'all' ? ' selected' : ''}>All</option>
         <option value="overdue"${_statusFilter === 'overdue' ? ' selected' : ''}>Overdue</option>
         <option value="due-soon"${_statusFilter === 'due-soon' ? ' selected' : ''}>Due Soon</option>
         <option value="ok"${_statusFilter === 'ok' ? ' selected' : ''}>OK</option>
-      </select>
+      </select>` : ''}
     </div>`;
 
-  // Category tabs HTML
-  const tabsHtml = categories.map(cat => {
-    const count = units.filter(u => (u.Type || 'Other').trim() === cat).length;
-    const active = cat === _activeTab ? ' dash-tab-active' : '';
+  // Count units with any overdue or due-soon milestone for Coming Due tab badge
+  const comingDueUnitCount = units.filter(u => unitStatusMap[u.UnitId] === 'overdue' || unitStatusMap[u.UnitId] === 'due-soon').length;
+
+  // Category tabs HTML (includes Coming Due synthetic tab)
+  const tabsHtml = allTabs.map(cat => {
+    let label, count, active;
+    if (cat === 'Coming Due') {
+      active = cat === _activeTab ? ' dash-tab-active' : '';
+      return `<button class="dash-tab${active}" data-category="Coming Due">Coming Due <span style="opacity:0.6;font-size:12px;">(${comingDueUnitCount})</span></button>`;
+    }
+    count = units.filter(u => (u.Type || 'Other').trim() === cat).length;
+    active = cat === _activeTab ? ' dash-tab-active' : '';
     return `<button class="dash-tab${active}" data-category="${escapeHtml(cat)}">${escapeHtml(cat)}s <span style="opacity:0.6;font-size:12px;">(${count})</span></button>`;
   }).join('');
 
   // Filter units for active tab
-  const tabUnits = units.filter(u => (u.Type || 'Other').trim() === _activeTab);
+  const tabUnits = _activeTab === 'Coming Due' ? units : units.filter(u => (u.Type || 'Other').trim() === _activeTab);
 
-  // Apply search and status filters (B6)
+  // Apply search and status filters (B6) — skip for Coming Due tab
   let filteredUnits = tabUnits;
-  if (_searchQuery) {
-    const q = _searchQuery.toLowerCase();
-    filteredUnits = filteredUnits.filter(u => u.UnitId.toLowerCase().includes(q));
-  }
-  if (_statusFilter !== 'all') {
-    filteredUnits = filteredUnits.filter(u => (unitStatusMap[u.UnitId] || 'ok') === _statusFilter);
+  if (_activeTab !== 'Coming Due') {
+    if (_searchQuery) {
+      const q = _searchQuery.toLowerCase();
+      filteredUnits = filteredUnits.filter(u => u.UnitId.toLowerCase().includes(q));
+    }
+    if (_statusFilter !== 'all') {
+      filteredUnits = filteredUnits.filter(u => (unitStatusMap[u.UnitId] || 'ok') === _statusFilter);
+    }
+    // Sort: overdue first, then due-soon, then ok
+    const statusOrder = { overdue: 0, 'due-soon': 1, ok: 2 };
+    filteredUnits.sort((a, b) => (statusOrder[unitStatusMap[a.UnitId] || 'ok'] ?? 2) - (statusOrder[unitStatusMap[b.UnitId] || 'ok'] ?? 2));
   }
 
-  // Sort: overdue first, then due-soon, then ok
-  const statusOrder = { overdue: 0, 'due-soon': 1, ok: 2 };
-  filteredUnits.sort((a, b) => (statusOrder[unitStatusMap[a.UnitId] || 'ok'] ?? 2) - (statusOrder[unitStatusMap[b.UnitId] || 'ok'] ?? 2));
+  // ── Helper: render a single milestone row ──────────────────────────────
+  function renderMsRow(ms, s) {
+    const statusCls = s.status === 'overdue' ? 'milestone-status--overdue'
+      : s.status === 'ok' ? 'milestone-status--ok' : 'milestone-status--na';
+    const icon = s.status === 'overdue' ? '!' : s.status === 'ok' ? '&#10003;' : '—';
+    let info = '';
+    if (s.nextDueDate != null) {
+      info = s.nextDueDate;
+      if (s.status === 'overdue') info += ' (overdue)';
+    } else if (s.nextDueMiles != null) {
+      info = `@ ${Math.round(s.nextDueMiles / 1000)}K`;
+      if (s.status === 'overdue') info += ' (overdue)';
+    } else if (s.status === 'no-interval') {
+      info = s.lastDoneMiles != null ? `done @ ${Math.round(s.lastDoneMiles / 1000)}K` : 'no interval';
+    } else {
+      info = 'not tracked';
+    }
+    return `<div style="display:flex;align-items:center;gap:4px;font-size:12px;line-height:1.6;">
+      <span class="milestone-status ${statusCls}">${icon}</span>
+      <span style="flex:1;color:var(--text);">${escapeHtml(ms.label)}</span>
+      <span style="color:var(--text-2);font-variant-numeric:tabular-nums;">${info}</span>
+    </div>`;
+  }
 
-  // Unit cards with milestone summaries
-  const cardsHtml = filteredUnits.map(u => {
+  // ── Coming Due tab view ─────────────────────────────────────────────────
+  let comingDueHtml = '';
+  if (_activeTab === 'Coming Due') {
+    // Group overdue/due-soon milestones by label across all units
+    const milestoneMap = new Map(); // label → [{unit, s, currentMiles}]
+    for (const u of units) {
+      const cond = conditionMap[u.UnitId];
+      const currentMiles = cond ? Number(cond.CurrentMiles) || 0 : 0;
+      const unitMaint = maintMap[u.UnitId] || [];
+      const milestones = getMilestonesForCategory(u.Type || 'Other');
+      for (const ms of milestones) {
+        const s = getMilestoneStatus(ms, unitMaint, currentMiles);
+        if (s.status === 'overdue' || isDueSoon(s, currentMiles, dueSoonMiles, dueSoonDays)) {
+          if (!milestoneMap.has(ms.label)) milestoneMap.set(ms.label, []);
+          milestoneMap.get(ms.label).push({ unit: u, s, currentMiles, ms });
+        }
+      }
+    }
+    // Sort sections by number of overdue (more overdue first)
+    const sections = Array.from(milestoneMap.entries()).sort((a, b) => {
+      const aOverdue = a[1].filter(x => x.s.status === 'overdue').length;
+      const bOverdue = b[1].filter(x => x.s.status === 'overdue').length;
+      return bOverdue - aOverdue || b[1].length - a[1].length;
+    });
+    if (sections.length === 0) {
+      comingDueHtml = `<div class="empty-state">
+        <p style="color:var(--text-2);">No units overdue or due soon.</p>
+      </div>`;
+    } else {
+      comingDueHtml = sections.map(([label, items]) => {
+        const rows = items.map(({ unit, s, currentMiles }) => {
+          const remaining = s.nextDueMiles != null ? s.nextDueMiles - currentMiles : null;
+          const urgency = s.status === 'overdue' ? `<span class="milestone-status milestone-status--overdue">!</span> overdue` : `<span class="milestone-status milestone-status--ok">&#10003;</span> due soon`;
+          const milesInfo = remaining != null ? (s.status === 'overdue' ? `${Math.abs(remaining).toLocaleString()} mi past` : `${remaining.toLocaleString()} mi left`) : (s.nextDueDate || '');
+          return `<a href="#unit?id=${encodeURIComponent(unit.UnitId)}" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);text-decoration:none;color:inherit;">
+            <span style="font-weight:600;font-size:13px;flex:1;">${escapeHtml(unit.UnitId)}</span>
+            <span style="font-size:11px;color:var(--text-2);">${currentMiles ? formatMiles(currentMiles) : '—'}</span>
+            <span style="font-size:11px;color:var(--text-2);">${milesInfo}</span>
+            <span style="font-size:11px;">${urgency}</span>
+          </a>`;
+        }).join('');
+        return `<div style="background:var(--bg-2);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;">
+          <div style="font-weight:600;font-size:13px;margin-bottom:8px;">${escapeHtml(label)} <span style="font-weight:400;color:var(--text-2);">(${items.length} unit${items.length !== 1 ? 's' : ''})</span></div>
+          ${rows}
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Unit cards with milestone summaries (for non-Coming Due tabs)
+  const cardsHtml = _activeTab === 'Coming Due' ? comingDueHtml : filteredUnits.map(u => {
     const st = unitStatusMap[u.UnitId] || 'ok';
     const cond = conditionMap[u.UnitId];
     const currentMiles = cond ? Number(cond.CurrentMiles) || 0 : 0;
     const unitMaint = maintMap[u.UnitId] || [];
     const milestones = getMilestonesForCategory(u.Type || 'Other');
 
-    // Build milestone rows
-    const msRows = milestones.map(ms => {
-      const s = getMilestoneStatus(ms, unitMaint, currentMiles);
-      const statusCls = s.status === 'overdue' ? 'milestone-status--overdue'
-        : s.status === 'ok' ? 'milestone-status--ok' : 'milestone-status--na';
-      const icon = s.status === 'overdue' ? '!' : s.status === 'ok' ? '&#10003;' : '—';
-      let info = '';
-      if (s.nextDueDate != null) {
-        info = s.nextDueDate;
-        if (s.status === 'overdue') info += ' (overdue)';
-      } else if (s.nextDueMiles != null) {
-        info = `@ ${Math.round(s.nextDueMiles / 1000)}K`;
-        if (s.status === 'overdue') info += ' (overdue)';
-      } else if (s.status === 'no-interval') {
-        info = s.lastDoneMiles != null ? `done @ ${Math.round(s.lastDoneMiles / 1000)}K` : 'no interval';
-      } else {
-        info = 'not tracked';
-      }
-      return `<div style="display:flex;align-items:center;gap:4px;font-size:12px;line-height:1.6;">
-        <span class="milestone-status ${statusCls}">${icon}</span>
-        <span style="flex:1;color:var(--text);">${escapeHtml(ms.label)}</span>
-        <span style="color:var(--text-2);font-variant-numeric:tabular-nums;">${info}</span>
-      </div>`;
-    }).join('');
+    // Compute all milestone results, then sort by urgency (MAINT-08)
+    const msResults = milestones.map(ms => ({ ms, s: getMilestoneStatus(ms, unitMaint, currentMiles) }));
+    msResults.sort((a, b) => urgencyScore(a.s, currentMiles, dueSoonMiles, dueSoonDays) - urgencyScore(b.s, currentMiles, dueSoonMiles, dueSoonDays));
+
+    // Partition into visible (overdue/due-soon) and hidden (ok/not-tracked) (MAINT-07)
+    const visibleResults = msResults.filter(r => r.s.status === 'overdue' || isDueSoon(r.s, currentMiles, dueSoonMiles, dueSoonDays));
+    const hiddenResults = msResults.filter(r => r.s.status !== 'overdue' && !isDueSoon(r.s, currentMiles, dueSoonMiles, dueSoonDays));
+
+    const unitId = u.UnitId;
+    const visibleRowsHtml = visibleResults.map(r => renderMsRow(r.ms, r.s)).join('');
+    const hiddenRowsHtml = hiddenResults.map(r => renderMsRow(r.ms, r.s)).join('');
+    const expandHtml = hiddenResults.length > 0 ? `
+      <div id="ms-expand-${escapeHtml(unitId)}" style="display:none;">${hiddenRowsHtml}</div>
+      <div data-action="expand-milestones" data-unit-id="${escapeHtml(unitId)}" style="cursor:pointer;font-size:12px;color:var(--text-2);padding:4px 0;">Show ${hiddenResults.length} more</div>
+    ` : '';
 
     // DOT Expiry row
     const dotExp = (u.DotExpiry || '').trim();
@@ -338,14 +413,15 @@ function renderDashboard(container, allMaintenance, allCondition) {
           ${statusBadge(badgeStatus, badgeLabel)}
         </div>
         <div style="border-top:1px solid var(--border);padding-top:6px;">
-          ${msRows}
+          ${visibleRowsHtml}
+          ${expandHtml}
           ${dotRow}
         </div>
       </a>`;
   }).join('');
 
-  // Empty state
-  const emptyHtml = !filteredUnits.length ? `
+  // Empty state (only for non-Coming Due tabs)
+  const emptyHtml = _activeTab !== 'Coming Due' && !filteredUnits.length ? `
     <div class="empty-state">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M3 17L8 7H16L21 17" stroke-linecap="round" stroke-linejoin="round"/>
@@ -404,6 +480,11 @@ function renderDashboard(container, allMaintenance, allCondition) {
         <div class="logo-sub">Dashboard</div>
       </div>
       ${renderSamsaraBadge()}
+      <a href="#settings" style="padding:8px;color:var(--text-2);text-decoration:none;" title="Settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+        </svg>
+      </a>
     </div>
 
     <nav class="section-nav">
@@ -429,7 +510,7 @@ function renderDashboard(container, allMaintenance, allCondition) {
       ${summaryBarHtml}
       ${searchFilterHtml}
 
-      ${categories.length > 1 ? `
+      ${allTabs.length > 1 ? `
         <div class="dash-tabs" style="display:flex;gap:6px;margin:16px 0 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
           ${tabsHtml}
         </div>
@@ -447,6 +528,22 @@ function renderDashboard(container, allMaintenance, allCondition) {
       _activeTab = btn.dataset.category;
       renderDashboard(container, allMaintenance, allCondition);
     });
+  });
+
+  // Wire expand/collapse milestones (event delegation — inside card <a> tags)
+  container.addEventListener('click', (e) => {
+    const expandBtn = e.target.closest('[data-action="expand-milestones"]');
+    if (expandBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const uid = expandBtn.dataset.unitId;
+      const expandDiv = document.getElementById('ms-expand-' + uid);
+      if (expandDiv) {
+        const hidden = expandDiv.style.display === 'none';
+        expandDiv.style.display = hidden ? '' : 'none';
+        expandBtn.textContent = hidden ? 'Show less' : `Show ${expandDiv.children.length} more`;
+      }
+    }
   });
 
   // Wire search input (B6)
