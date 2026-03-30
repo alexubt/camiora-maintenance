@@ -204,6 +204,88 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
 
   function debugLog(msg) { dbg.textContent += msg + '\n'; }
 
+  // ── Single camera attempt — returns true if video is playing ──────────────
+
+  async function attemptCamera(attemptNum) {
+    debugLog(`--- Attempt ${attemptNum} ---`);
+
+    // Kill any orphaned stream
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    killGlobalStream();
+
+    const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+    if (isStandalone) {
+      debugLog('iOS PWA detected — applying camera reset workaround');
+      try {
+        const resetStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        resetStream.getTracks().forEach(t => t.stop());
+        debugLog('Camera reset stream obtained and stopped');
+        await new Promise(r => setTimeout(r, 300));
+      } catch (resetErr) {
+        debugLog('Camera reset failed (non-fatal): ' + resetErr.message);
+      }
+    }
+
+    debugLog('Requesting camera...');
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false,
+    });
+    _globalStream = stream;
+    debugLog('Stream obtained: ' + stream.getTracks().map(t => t.kind + ':' + t.readyState).join(', '));
+    debugLog('Track settings: ' + JSON.stringify(stream.getVideoTracks()[0]?.getSettings()));
+
+    // Create a FRESH video element every attempt (WebKit bug 252465)
+    const freshVideo = document.createElement('video');
+    freshVideo.autoplay = true;
+    freshVideo.muted = true;
+    freshVideo.setAttribute('playsinline', '');
+    freshVideo.style.cssText = 'width:100%;height:100%;position:absolute;top:0;left:0;';
+
+    // Swap into DOM — replace whatever video element is currently there
+    try { el.replaceChild(freshVideo, video); } catch (_) { el.prepend(freshVideo); }
+    video = freshVideo;
+    // Re-bind metadata sync
+    video.addEventListener('loadedmetadata', syncSize);
+    debugLog('Fresh video element created and swapped');
+    debugLog('Forced video dimensions: ' + window.innerWidth + 'x' + window.innerHeight);
+
+    // Set srcObject and wait for video events
+    const started = await new Promise(resolve => {
+      const timeout = setTimeout(() => {
+        debugLog('TIMEOUT (3s). readyState=' + video.readyState + ' videoW=' + video.videoWidth);
+        resolve(false);
+      }, 3000);
+
+      function onReady() {
+        clearTimeout(timeout);
+        debugLog('Video playing! readyState=' + video.readyState + ' ' + video.videoWidth + 'x' + video.videoHeight);
+        resolve(true);
+      }
+
+      video.addEventListener('playing', onReady, { once: true });
+      video.addEventListener('canplay', onReady, { once: true });
+      video.addEventListener('loadeddata', onReady, { once: true });
+
+      for (const evt of ['loadstart', 'progress', 'suspend', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'playing', 'waiting', 'stalled', 'error']) {
+        video.addEventListener(evt, () => debugLog('event: ' + evt + ' readyState=' + video.readyState), { once: true });
+      }
+
+      video.srcObject = stream;
+      debugLog('srcObject set. readyState=' + video.readyState);
+
+      const playPromise = video.play();
+      if (playPromise) {
+        playPromise.then(() => debugLog('play() resolved')).catch(e => debugLog('play() rejected: ' + e.message));
+      }
+      debugLog('play() called');
+    });
+
+    return started;
+  }
+
+  // ── Camera startup with retry ──────────────────────────────────────────────
+
   async function startCamera() {
     debugLog('getUserMedia supported: ' + !!navigator.mediaDevices?.getUserMedia);
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -213,91 +295,24 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     }
 
     try {
-      // Kill any orphaned stream from a previous session (iOS PWA suspend issue)
-      killGlobalStream();
+      // Attempt 1
+      let started = await attemptCamera(1);
 
-      // WebKit bug 252465 workaround: in iOS PWA standalone mode, getUserMedia
-      // often fails silently on second launch. Creating a temporary <input capture>
-      // element can reset WebKit's internal camera state before requesting the stream.
-      const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-      if (isStandalone) {
-        debugLog('iOS PWA detected — applying camera reset workaround');
-        try {
-          // Request + immediately stop a throwaway stream to wake up the camera subsystem
-          const resetStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-          resetStream.getTracks().forEach(t => t.stop());
-          debugLog('Camera reset stream obtained and stopped');
-          // Brief pause to let WebKit release the internal state
-          await new Promise(r => setTimeout(r, 300));
-        } catch (resetErr) {
-          debugLog('Camera reset failed (non-fatal): ' + resetErr.message);
-        }
+      // WebKit bug 252465: second launch in iOS PWA often stalls at suspend.
+      // Tear everything down and retry once — the second attempt often succeeds
+      // because the first attempt "warms up" the camera subsystem.
+      if (!started) {
+        debugLog('Attempt 1 stalled — retrying...');
+        // Fully release the stalled stream before retrying
+        try { video.pause(); video.srcObject = null; } catch (_) {}
+        if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+        _globalStream = null;
+        await new Promise(r => setTimeout(r, 500));
+        started = await attemptCamera(2);
       }
 
-      debugLog('Requesting camera...');
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: false,
-      });
-      _globalStream = stream; // track globally for cleanup on PWA suspend
-      debugLog('Stream obtained: ' + stream.getTracks().map(t => t.kind + ':' + t.readyState).join(', '));
-      debugLog('Track settings: ' + JSON.stringify(stream.getVideoTracks()[0]?.getSettings()));
-
-      // Force explicit dimensions BEFORE setting source — iOS won't load
-      // a video stream into a 0-height element
-      video.style.width = '100%';
-      video.style.height = '100%';
-      video.style.position = 'absolute';
-      video.style.top = '0';
-      video.style.left = '0';
-      debugLog('Forced video dimensions: ' + window.innerWidth + 'x' + window.innerHeight);
-
-      // WebKit bug 252465: the video element created before the stream
-      // can be in a corrupted state in iOS PWA. Create a FRESH video element
-      // after getting the stream and swap it into the DOM.
-      const freshVideo = document.createElement('video');
-      freshVideo.autoplay = true;
-      freshVideo.muted = true;
-      freshVideo.setAttribute('playsinline', '');
-      freshVideo.style.cssText = video.style.cssText;
-      el.replaceChild(freshVideo, video);
-      video = freshVideo;
-      debugLog('Fresh video element created and swapped');
-
-      // Set srcObject and wait for video events
-      const started = await new Promise(resolve => {
-        const timeout = setTimeout(() => {
-          debugLog('TIMEOUT (5s). readyState=' + video.readyState + ' videoW=' + video.videoWidth);
-          resolve(false);
-        }, 5000);
-
-        function onReady() {
-          clearTimeout(timeout);
-          debugLog('Video playing! readyState=' + video.readyState + ' ' + video.videoWidth + 'x' + video.videoHeight);
-          resolve(true);
-        }
-
-        video.addEventListener('playing', onReady, { once: true });
-        video.addEventListener('canplay', onReady, { once: true });
-        video.addEventListener('loadeddata', onReady, { once: true });
-
-        // Log every event for debugging
-        for (const evt of ['loadstart', 'progress', 'suspend', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'playing', 'waiting', 'stalled', 'error']) {
-          video.addEventListener(evt, () => debugLog('event: ' + evt + ' readyState=' + video.readyState), { once: true });
-        }
-
-        video.srcObject = stream;
-        debugLog('srcObject set. readyState=' + video.readyState);
-
-        const playPromise = video.play();
-        if (playPromise) {
-          playPromise.then(() => debugLog('play() resolved')).catch(e => debugLog('play() rejected: ' + e.message));
-        }
-        debugLog('play() called');
-      });
-
       if (!started) {
-        debugLog('Falling back to native camera');
+        debugLog('Both attempts failed — falling back to native camera');
         exit();
         onFallback?.();
         return;

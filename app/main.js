@@ -132,6 +132,18 @@ window.addEventListener('DOMContentLoaded', async () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
+  // WebKit bug 252465: iOS PWA keeps camera resources alive across sessions.
+  // Pre-emptively request + release a throwaway camera stream on every boot
+  // to reset WebKit's internal state before the scanner is ever opened.
+  if (navigator.mediaDevices?.getUserMedia) {
+    const isPWA = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+    if (isPWA) {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then(s => { s.getTracks().forEach(t => t.stop()); })
+        .catch(() => {});
+    }
+  }
+
   // Check for OAuth authorization code in URL
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
