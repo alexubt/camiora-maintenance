@@ -43,6 +43,8 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
 
   let lastFrameSent = 0;
   let noCornersSince = 0; // timestamp when currentCorners went null
+  let detectionFrameW = 360; // width of the frame sent to worker
+  let detectionFrameH = 240; // height of the frame sent to worker
 
   /** @type {Blob[]} Captured JPEG blobs for each scanned page */
   const scannedPages = [];
@@ -127,10 +129,10 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     if (!corners) return;
 
-    const vw = videoEl.videoWidth || 1;
-    const vh = videoEl.videoHeight || 1;
-    const scaleX = overlayCanvas.width / vw;
-    const scaleY = overlayCanvas.height / vh;
+    // Corners are in detection frame coordinates (e.g. 360x240),
+    // scale them to the overlay canvas size (viewport)
+    const scaleX = overlayCanvas.width / detectionFrameW;
+    const scaleY = overlayCanvas.height / detectionFrameH;
 
     function toCanvas(pt) {
       return { x: pt.x * scaleX, y: pt.y * scaleY };
@@ -187,6 +189,8 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
     tmp.width = 0;
     tmp.height = 0;
 
+    detectionFrameW = thumbW;
+    detectionFrameH = thumbH;
     workerBusy = true;
     worker.postMessage({ rgba, width: thumbW, height: thumbH }, [rgba]);
   }
