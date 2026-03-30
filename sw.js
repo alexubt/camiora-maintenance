@@ -1,4 +1,4 @@
-const CACHE = 'camiora-v53';
+const CACHE = 'camiora-v54';
 const STATIC = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const STATIC = [
   './app/install.js',
   './app/views/upload.js',
   './app/views/dashboard.js',
+  './app/views/settings.js',
   './app/views/unit-detail.js',
   './app/imaging/scanner.js',
   './app/imaging/scanner-core.js',

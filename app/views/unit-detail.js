@@ -697,7 +697,8 @@ function renderTireMonitor(maintenance, unitId, unitType) {
     ];
   } else if (isTrailer) {
     groups = [
-      { label: 'Axle', positions: TIRE_POSITIONS.filter(p => p.key.startsWith('trailer')) },
+      { label: 'Axle 1', positions: TIRE_POSITIONS.filter(p => p.key.startsWith('trailer-1')) },
+      { label: 'Axle 2', positions: TIRE_POSITIONS.filter(p => p.key.startsWith('trailer-2')) },
     ];
   } else {
     // Unknown type — show all
