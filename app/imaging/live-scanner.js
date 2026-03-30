@@ -167,18 +167,18 @@ export function openLiveScanner(containerEl, { onDone, onCancel, onFallback }) {
 
   // ── Debug overlay — triple-tap close button to toggle ───────────────────
   const dbg = document.createElement('div');
-  dbg.style.cssText = 'position:absolute;top:50px;left:10px;right:10px;z-index:9999;background:rgba(0,0,0,0.8);color:#0f0;font:12px monospace;padding:8px;border-radius:6px;pointer-events:none;white-space:pre-wrap;display:none;';
+  dbg.style.cssText = 'position:absolute;top:50px;left:10px;right:10px;z-index:9999;background:rgba(0,0,0,0.8);color:#0f0;font:12px monospace;padding:8px;border-radius:6px;white-space:pre-wrap;display:none;overflow-y:auto;max-height:60vh;';
   el.appendChild(dbg);
-  let _dbgTaps = 0, _dbgTimer = null;
-  closeBtn.addEventListener('pointerdown', () => {
-    _dbgTaps++;
-    clearTimeout(_dbgTimer);
-    _dbgTimer = setTimeout(() => { _dbgTaps = 0; }, 600);
-    if (_dbgTaps >= 3) {
-      _dbgTaps = 0;
-      dbg.style.display = dbg.style.display === 'none' ? 'block' : 'none';
-    }
+
+  const dbgToggle = document.createElement('button');
+  dbgToggle.textContent = 'DBG';
+  dbgToggle.style.cssText = 'position:absolute;top:12px;right:12px;z-index:10000;background:rgba(0,0,0,0.6);color:#0f0;border:1px solid #0f0;border-radius:4px;font:10px monospace;padding:2px 6px;';
+  dbgToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dbg.style.display = dbg.style.display === 'none' ? 'block' : 'none';
   });
+  el.appendChild(dbgToggle);
+
   function debugLog(msg) { dbg.textContent += msg + '\n'; }
 
   async function startCamera() {
